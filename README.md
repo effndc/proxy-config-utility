@@ -132,7 +132,7 @@ add a scheduler when you want hands-off updates.
 | | Status |
 |---|---|
 | macOS | Tested (launchd auto-detect + manual) |
-| Linux (Ubuntu) | Detector portable; systemd units provided as a lightly-tested proposal |
+| Linux (Ubuntu) | Detector + SSH helper verified on Ubuntu (OpenBSD netcat, bash 5.2, dash `/bin/sh`): `nc` flags, connect-timeout, `stat -c`, `date -u`, `mktemp`, mkdir-lock all confirmed. systemd units remain a proposal. |
 | WSL2 | **Untested** — use manual `proxy-refresh` (systemd is opt-in; NAT'd networking) |
 | bash / zsh / fish | Supported |
 | Terminal.app / iTerm2 / Ghostty | Color cue verified |
