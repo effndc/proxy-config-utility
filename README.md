@@ -89,12 +89,18 @@ VS Code) that cache the prompt don't freeze the color.
    $EDITOR ~/.config/proxy-config/on-change
    ```
 
+   > **About `dt` / "devtool":** the author's macOS setup runs an internal corporate
+   > tool, `dt` (aka *devtool*), to manage GitHub configuration — including the git
+   > proxy. `dt` is internal and is **not included in this repo**. The `on-change`
+   > hook above is the generic, self-contained replacement: it sets git's HTTP/HTTPS
+   > proxy directly, so you don't need `dt` or any equivalent.
+
 ## What you must customize
 
 | Item | File | Example → set to your values |
 |---|---|---|
-| Reachability probe host:port | `~/.config/proxy-config/config` | `proxy.example.com` / `8080` |
-| HTTP / HTTPS / SOCKS proxy URLs | `~/.config/proxy-config/config` | `http://proxy.example.com:8080`, `socks5://…:1080` |
+| Reachability probe host:port | `~/.config/proxy-config/config` | `proxy.effndc.com` / `8080` |
+| HTTP / HTTPS / SOCKS proxy URLs | `~/.config/proxy-config/config` | `http://proxy.effndc.com:8080`, `socks5://…:1080` |
 | `NO_PROXY_LIST` | `~/.config/proxy-config/config` | add your internal domains + CIDRs |
 | Prompt colors (optional) | `~/.config/proxy-config/config` | `38;5;33` (on) / `38;5;51` (off) |
 | SSH SOCKS host:port (optional) | `ssh/proxy.sshconfig` | `SOCKS_PROXY_HOST:SOCKS_PROXY_PORT` |
@@ -138,6 +144,26 @@ add a scheduler when you want hands-off updates.
   the cache) or run `proxy-sync`.
 - **Probe always says proxy_yes/no:** confirm `PROXY_PROBE_HOST:PORT` is reachable *only*
   when behind the proxy; an always-on tunnel/VPN can keep it reachable.
+
+## Roadmap / future ideas
+
+Possible additions, mostly extending the `on-change` hook so more tools follow the
+detected proxy state automatically:
+
+- **Ubuntu `apt` proxy** — write/remove `/etc/apt/apt.conf.d/95proxy`
+  (`Acquire::http::Proxy` / `Acquire::https::Proxy`) on state change (needs sudo).
+- **git HTTPS proxy without `dt`** — promote the `on-change` git-proxy snippet into a
+  first-class, documented option (set/unset `http.proxy`/`https.proxy`), so corporate
+  users get the `dt` behavior with nothing internal required.
+- **Docker image pulls through the proxy** — manage the Docker client proxy
+  (`~/.docker/config.json` `proxies` block) and/or the daemon's
+  `Service.Proxy`/systemd drop-in so `docker pull` works behind the proxy.
+- **Podman image pulls through the proxy** — manage Podman's proxy env
+  (`containers.conf` `[engine] env`, or `~/.config/environment.d`) so `podman pull`
+  works behind the proxy.
+
+Each of these is naturally a small, opt-in module invoked from `on-change` (and gated
+on `proxy_yes`/`no_proxy`), keeping the core detector minimal.
 
 ## License
 

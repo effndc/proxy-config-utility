@@ -13,19 +13,19 @@
 # A host:port that is reachable ONLY when you are behind the corporate
 # proxy/VPN. proxy-detect tests this to decide proxy_yes vs no_proxy.
 # CUSTOMIZE these two:
-PROXY_PROBE_HOST="proxy.example.com"
+PROXY_PROBE_HOST="proxy.effndc.com"
 PROXY_PROBE_PORT="8080"
 
 # ── REQUIRED: proxy URLs exported into your environment when behind the proxy ─
 # CUSTOMIZE to your corporate proxy. HTTPS defaults to the HTTP value if unset.
-HTTP_PROXY_URL="http://proxy.example.com:8080"
-HTTPS_PROXY_URL="http://proxy.example.com:8080"
-SOCKS_PROXY_URL="socks5://proxy.example.com:1080"
+HTTP_PROXY_URL="http://proxy.effndc.com:8080"
+HTTPS_PROXY_URL="http://proxy.effndc.com:8080"
+SOCKS_PROXY_URL="socks5://proxy.effndc.com:1080"
 
 # ── REQUIRED: hosts/domains/CIDRs that must bypass the proxy ─────────────────
 # Comma-separated. CUSTOMIZE: add your internal domains and network ranges.
 # The example below covers loopback, a sample domain, and the RFC1918 ranges.
-NO_PROXY_LIST="127.0.0.1,localhost,.example.com,.internal,.local,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+NO_PROXY_LIST="127.0.0.1,localhost,.effndc.com,.internal,.local,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
 # ── OPTIONAL: prompt colors (256-color-cube SGR params; theme-independent) ───
 # These indices (16–255) are NOT remapped by terminal themes, so the cue stays

@@ -25,12 +25,12 @@ LOCK="$STATE_DIR/proxy-detect.lock"
 CONFIG="${PROXY_CONFIG:-$HOME/.config/proxy-config/config}"
 # shellcheck disable=SC1090
 [ -r "$CONFIG" ] && . "$CONFIG"
-: "${PROXY_PROBE_HOST:=proxy.example.com}"   # host reachable ONLY when behind the proxy
+: "${PROXY_PROBE_HOST:=proxy.effndc.com}"    # host reachable ONLY when behind the proxy
 : "${PROXY_PROBE_PORT:=8080}"                # port to test on that host
-: "${HTTP_PROXY_URL:=http://proxy.example.com:8080}"
+: "${HTTP_PROXY_URL:=http://proxy.effndc.com:8080}"
 : "${HTTPS_PROXY_URL:=$HTTP_PROXY_URL}"
-: "${SOCKS_PROXY_URL:=socks5://proxy.example.com:1080}"
-: "${NO_PROXY_LIST:=127.0.0.1,localhost,.example.com,.internal,.local,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}"
+: "${SOCKS_PROXY_URL:=socks5://proxy.effndc.com:1080}"
+: "${NO_PROXY_LIST:=127.0.0.1,localhost,.effndc.com,.internal,.local,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}"
 : "${PROXY_COLOR_ON:=38;5;33}"   # behind proxy  -> blue  (256-color cube; theme-independent)
 : "${PROXY_COLOR_OFF:=38;5;51}"  # direct        -> cyan
 HOOK="${PROXY_HOOK:-$HOME/.config/proxy-config/on-change}"

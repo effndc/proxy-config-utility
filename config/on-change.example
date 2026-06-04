@@ -5,8 +5,13 @@
 # state, passing the current status as $1: "proxy_yes" or "no_proxy".
 #
 # Use it for any side effect that must follow the network state — most commonly
-# configuring git-over-HTTPS to use (or stop using) the proxy. This is the
-# generic stand-in for a corporate "configure my proxy" tool.
+# configuring git-over-HTTPS to use (or stop using) the proxy.
+#
+# NOTE: The author's macOS setup calls an internal corporate tool, `dt` (aka
+# "devtool"), which manages GitHub configuration (including the git proxy). `dt`
+# is internal and is NOT included in this repo. This hook is the generic,
+# self-contained stand-in: it sets git's http/https proxy directly so you don't
+# need `dt` or any equivalent.
 #
 # Install:
 #     cp config/on-change.example ~/.config/proxy-config/on-change
@@ -19,7 +24,7 @@ set -u
 status="${1:-no_proxy}"
 
 # CUSTOMIZE: your corporate HTTP proxy for git.
-PROXY="http://proxy.example.com:8080"
+PROXY="http://proxy.effndc.com:8080"
 
 case "$status" in
   proxy_yes)
