@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# proxy-reachable HOST PORT — exit 0 if HOST:PORT is directly reachable within ~1s,
+# non-zero otherwise. Used by the SSH Match in ssh/proxy.sshconfig so that config
+# stays portable: the nc connect-timeout flag differs by OS and the difference is
+# load-bearing —
+#   macOS (BSD nc): needs -G (connection timeout); -w does NOT bound the TCP
+#                   connect there, so without -G an unreachable host hangs ~75s.
+#   Linux (netcat-openbsd): has no -G; -w DOES bound the connect.
+# Requires `nc` (which the ProxyCommand also needs).
+set -u
+case "$(uname -s)" in
+  Darwin) exec nc -z -G 1 -w 1 "$1" "$2" 2>/dev/null ;;
+  *)      exec nc -z -w 1 "$1" "$2" 2>/dev/null ;;
+esac

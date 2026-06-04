@@ -18,14 +18,19 @@
 #
 # Behavior: the ProxyCommand applies only when proxy-detect reports we're behind
 # the proxy (state file says proxy_yes) AND the target host is not directly
-# reachable. When off-proxy, the `&&` short-circuits so NO probe runs at all.
+# reachable. When off-proxy, the `&&` short-circuits so no reachability check runs.
 #
-# Portability note: `nc -G 1` (connect timeout) is macOS-specific. On Linux
-# (netcat-openbsd) drop it — use:  ! nc -z -w 1 %h %p 2>/dev/null
+# Why the helper instead of inline `nc`: the connect-timeout flag differs by OS and
+# the difference is load-bearing — macOS BSD nc needs `-G` (without it `-w` does NOT
+# bound the TCP connect, so an unreachable host hangs ~75s), while Linux
+# netcat-openbsd has no `-G` and uses `-w`. bin/proxy-reachable does that `uname`
+# branch once, so this config is portable with no per-OS editing. Install it on PATH
+# (e.g. symlink bin/proxy-reachable -> ~/bin/proxy-reachable); both it and the
+# ProxyCommand require `nc`.
 #
 # To force a host to always go direct (skip this proxy), give it `ProxyCommand none`
 # in its own earlier Host block. To force a host to always use the proxy, give it an
 # explicit ProxyCommand in its own block.
 
-Match exec "grep -q '^PROXY_STATUS=proxy_yes' ~/.cache/proxy/state.env && ! nc -z -G 1 -w 1 %h %p 2>/dev/null"
+Match exec "grep -q '^PROXY_STATUS=proxy_yes' ~/.cache/proxy/state.env && ! ~/bin/proxy-reachable %h %p"
     ProxyCommand nc -X 5 -x SOCKS_PROXY_HOST:SOCKS_PROXY_PORT %h %p

@@ -41,12 +41,14 @@ VS Code) that cache the prompt don't freeze the color.
 
 ## Install
 
-1. **Get the detector on your PATH.** Symlink (or copy) `bin/proxy-detect` to `~/bin`:
+1. **Get the scripts on your PATH.** Symlink (or copy) `bin/proxy-detect` to `~/bin`
+   (and `bin/proxy-reachable` too if you'll use the SSH integration):
    ```sh
    mkdir -p ~/bin
-   ln -s "$PWD/bin/proxy-detect" ~/bin/proxy-detect   # ensure ~/bin is on your PATH
+   ln -s "$PWD/bin/proxy-detect"    ~/bin/proxy-detect      # ensure ~/bin is on your PATH
+   ln -s "$PWD/bin/proxy-reachable" ~/bin/proxy-reachable   # only needed for SSH integration
    ```
-   (Or point the shell snippet at it with `export PROXY_DETECT=/path/to/bin/proxy-detect`.)
+   (Or point the shell snippet at the detector with `export PROXY_DETECT=/path/to/bin/proxy-detect`.)
 
 2. **Create your config** (this is the only file you must edit):
    ```sh
@@ -83,7 +85,8 @@ VS Code) that cache the prompt don't freeze the color.
    `~/.ssh/config` or `Include` it there (see comments in that file). No `Host *`
    wrapper is needed — `Match` is its own top-level block, so it works even in an
    empty `~/.ssh/config`. Place it near the top, since ssh uses the first matching
-   `ProxyCommand`.
+   `ProxyCommand`. Requires `bin/proxy-reachable` on your PATH (step 1) — it does the
+   OS-correct `nc` connect-timeout so the config is portable between macOS and Linux.
 
 7. **(Optional) on-change hook** — e.g. configure git-over-HTTPS to use the proxy:
    ```sh
