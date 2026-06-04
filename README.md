@@ -41,6 +41,20 @@ VS Code) that cache the prompt don't freeze the color.
 
 ## Install
 
+### Quick start (guided)
+
+```sh
+./install.sh
+```
+
+The interactive installer asks for your proxy settings (probe host/port, HTTP/HTTPS/SOCKS
+URLs, `no_proxy`, prompt colors), then installs the scripts, wires up your shell(s), offers
+automatic detection (macOS launchd / Linux systemd timer), optional SSH routing, and an
+optional git-proxy hook. It's safe to re-run and backs up anything it changes. Prefer the
+manual steps below if you'd rather see exactly what gets written.
+
+### Manual
+
 1. **Get the scripts on your PATH.** Symlink (or copy) `bin/proxy-detect` to `~/bin`
    (and `bin/proxy-reachable` too if you'll use the SSH integration):
    ```sh
