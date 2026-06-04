@@ -79,8 +79,11 @@ VS Code) that cache the prompt don't freeze the color.
    - **WSL2:** manual `proxy-refresh` is recommended (untested; see caveat below).
 
 6. **(Optional) SSH integration** — route SSH through a SOCKS proxy only when behind it.
-   Customize `ssh/proxy.sshconfig` and `Include` it near the top of `~/.ssh/config`
-   (see comments in that file).
+   Customize `ssh/proxy.sshconfig` and either paste its two lines at the top of
+   `~/.ssh/config` or `Include` it there (see comments in that file). No `Host *`
+   wrapper is needed — `Match` is its own top-level block, so it works even in an
+   empty `~/.ssh/config`. Place it near the top, since ssh uses the first matching
+   `ProxyCommand`.
 
 7. **(Optional) on-change hook** — e.g. configure git-over-HTTPS to use the proxy:
    ```sh
