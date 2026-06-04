@@ -1,0 +1,26 @@
+# proxy-config-utility — SSH integration.
+#
+# Route SSH through a SOCKS proxy automatically, driven by the proxy-detect state
+# file instead of a per-connection network probe. This is deterministic and avoids
+# the host-block ordering surprises of a bare `Match !Exec "nc -z %h %p ..."`.
+#
+# How to use — add this near the TOP of ~/.ssh/config (ssh takes the FIRST
+# ProxyCommand that matches, so place it before any `Host *` you don't want it to
+# affect), or Include it:
+#     Include ~/path/to/proxy-config-utility/ssh/proxy.sshconfig
+#
+# CUSTOMIZE: replace SOCKS_PROXY_HOST and SOCKS_PROXY_PORT below.
+#
+# Behavior: the ProxyCommand applies only when proxy-detect reports we're behind
+# the proxy (state file says proxy_yes) AND the target host is not directly
+# reachable. When off-proxy, the `&&` short-circuits so NO probe runs at all.
+#
+# Portability note: `nc -G 1` (connect timeout) is macOS-specific. On Linux
+# (netcat-openbsd) drop it — use:  ! nc -z -w 1 %h %p 2>/dev/null
+#
+# To force a host to always go direct (skip this proxy), give it `ProxyCommand none`
+# in its own earlier Host block. To force a host to always use the proxy, give it an
+# explicit ProxyCommand in its own block.
+
+Match exec "grep -q '^PROXY_STATUS=proxy_yes' ~/.cache/proxy/state.env && ! nc -z -G 1 -w 1 %h %p 2>/dev/null"
+    ProxyCommand nc -X 5 -x SOCKS_PROXY_HOST:SOCKS_PROXY_PORT %h %p

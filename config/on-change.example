@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# proxy-config-utility — optional on-change hook.
+#
+# proxy-detect runs this (if it exists and is executable) every time it detects
+# state, passing the current status as $1: "proxy_yes" or "no_proxy".
+#
+# Use it for any side effect that must follow the network state — most commonly
+# configuring git-over-HTTPS to use (or stop using) the proxy. This is the
+# generic stand-in for a corporate "configure my proxy" tool.
+#
+# Install:
+#     cp config/on-change.example ~/.config/proxy-config/on-change
+#     chmod +x ~/.config/proxy-config/on-change
+#     $EDITOR ~/.config/proxy-config/on-change   # set PROXY below
+#
+# Keep it fast and non-interactive. proxy-detect ignores its output and errors.
+
+set -u
+status="${1:-no_proxy}"
+
+# CUSTOMIZE: your corporate HTTP proxy for git.
+PROXY="http://proxy.example.com:8080"
+
+case "$status" in
+  proxy_yes)
+    git config --global http.proxy  "$PROXY"
+    git config --global https.proxy "$PROXY"
+    ;;
+  *)
+    git config --global --unset http.proxy  2>/dev/null || true
+    git config --global --unset https.proxy 2>/dev/null || true
+    ;;
+esac

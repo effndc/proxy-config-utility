@@ -1,0 +1,8 @@
+[Unit]
+Description=Detect corporate proxy reachability and publish state cache
+Documentation=https://github.com/effndc/proxy-config-utility
+
+[Service]
+Type=oneshot
+# %h expands to the user's home dir. Adjust if proxy-detect lives elsewhere.
+ExecStart=%h/bin/proxy-detect

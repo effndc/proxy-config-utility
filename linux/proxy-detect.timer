@@ -1,0 +1,12 @@
+[Unit]
+Description=Periodically run proxy-detect
+Documentation=https://github.com/effndc/proxy-config-utility
+
+[Timer]
+OnBootSec=30
+OnUnitActiveSec=5min
+# Run a missed timer as soon as possible after resume/login.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
