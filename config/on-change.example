@@ -36,3 +36,15 @@ case "$status" in
     git config --global --unset https.proxy 2>/dev/null || true
     ;;
 esac
+
+# Optional: keep Docker's CLIENT proxy in sync (proxy env injected into
+# `docker build` / `docker run` containers; ~/.docker/config.json — no sudo, no
+# restart). Safe to run on every detection. The DAEMON side (`docker pull`) needs
+# root + a Docker restart, so it is NOT done here — run that yourself when you want
+# it:  sudo proxy-docker --daemon on   (and  ...off  when you leave the network).
+if command -v proxy-docker >/dev/null 2>&1; then
+  case "$status" in
+    proxy_yes) proxy-docker on  >/dev/null 2>&1 || true ;;
+    *)         proxy-docker off >/dev/null 2>&1 || true ;;
+  esac
+fi

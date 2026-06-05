@@ -165,25 +165,34 @@ add a scheduler when you want hands-off updates.
 - **Probe always says proxy_yes/no:** confirm `PROXY_PROBE_HOST:PORT` is reachable *only*
   when behind the proxy; an always-on tunnel/VPN can keep it reachable.
 
+## Docker
+
+`bin/proxy-docker` syncs Docker's proxy config with the detected state — client scope
+(`~/.docker/config.json`, for build/run container env; no sudo) automatically via the
+`on-change` hook, and daemon scope (`/etc/docker/daemon.json`, for `docker pull`; needs
+root + a Docker restart) on demand:
+
+```sh
+proxy-docker on|off                 # client (auto via on-change hook)
+sudo proxy-docker --daemon on|off   # daemon (deliberate; restarts dockerd)
+```
+
+See [`docker/README.md`](docker/README.md) for details, including optional full
+automation of the daemon side.
+
 ## Roadmap / future ideas
 
-Possible additions, mostly extending the `on-change` hook so more tools follow the
-detected proxy state automatically:
+More opt-in modules that extend the `on-change` hook so additional tools follow the
+detected proxy state (each gated on `proxy_yes`/`no_proxy`, keeping the core minimal):
 
 - **Ubuntu `apt` proxy** — write/remove `/etc/apt/apt.conf.d/95proxy`
   (`Acquire::http::Proxy` / `Acquire::https::Proxy`) on state change (needs sudo).
 - **git HTTPS proxy without `dt`** — promote the `on-change` git-proxy snippet into a
   first-class, documented option (set/unset `http.proxy`/`https.proxy`), so corporate
   users get the `dt` behavior with nothing internal required.
-- **Docker image pulls through the proxy** — manage the Docker client proxy
-  (`~/.docker/config.json` `proxies` block) and/or the daemon's
-  `Service.Proxy`/systemd drop-in so `docker pull` works behind the proxy.
 - **Podman image pulls through the proxy** — manage Podman's proxy env
   (`containers.conf` `[engine] env`, or `~/.config/environment.d`) so `podman pull`
   works behind the proxy.
-
-Each of these is naturally a small, opt-in module invoked from `on-change` (and gated
-on `proxy_yes`/`no_proxy`), keeping the core detector minimal.
 
 ## License
 

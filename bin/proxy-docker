@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# proxy-docker — apply/remove Docker proxy settings to match proxy state.
+#
+# Two scopes (Docker keeps client and daemon proxy config separate):
+#   client  (default, NO sudo): ~/.docker/config.json  -> proxy env injected into
+#           `docker build` / `docker run` CONTAINERS. No daemon restart needed.
+#   daemon  (--daemon, needs ROOT): /etc/docker/daemon.json `proxies` -> the proxy
+#           dockerd itself uses for `docker pull`. Restarts Docker (disrupts running
+#           containers) unless --no-restart.
+#
+# Usage:
+#   proxy-docker on|off                  # client scope, as your user
+#   sudo proxy-docker --daemon on|off    # daemon scope (root); --no-restart to skip
+#   proxy-docker on|off --all            # client + daemon (daemon part needs root)
+#
+# Values come from ~/.config/proxy-config/config (HTTP_PROXY_URL / HTTPS_PROXY_URL /
+# NO_PROXY_LIST). Under sudo, the invoking user's config is read via $SUDO_USER.
+# Existing JSON is MERGED (other keys preserved), written atomically.
+# Test/override paths: DOCKER_CLIENT_JSON, DOCKER_DAEMON_JSON, PROXY_CONFIG.
+set -u
+
+STATE=""; DO_CLIENT=0; DO_DAEMON=0; RESTART=1
+while [ $# -gt 0 ]; do
+  case "$1" in
+    on|proxy_yes)  STATE=on  ;;
+    off|no_proxy)  STATE=off ;;
+    --client)      DO_CLIENT=1 ;;
+    --daemon)      DO_DAEMON=1 ;;
+    --all)         DO_CLIENT=1; DO_DAEMON=1 ;;
+    --no-restart)  RESTART=0 ;;
+    -h|--help)     sed -n '2,22p' "$0"; exit 0 ;;
+    *) echo "proxy-docker: unknown arg '$1' (try -h)" >&2; exit 2 ;;
+  esac; shift
+done
+[ -z "$STATE" ] && { echo "proxy-docker: need 'on' or 'off'" >&2; exit 2; }
+[ $DO_CLIENT -eq 0 ] && [ $DO_DAEMON -eq 0 ] && DO_CLIENT=1   # default scope = client
+
+# Resolve the invoking user's home/config even under sudo.
+if [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-}" ]; then
+  USER_HOME="$(eval echo "~$SUDO_USER")"
+else
+  USER_HOME="$HOME"
+fi
+CFG="${PROXY_CONFIG:-$USER_HOME/.config/proxy-config/config}"
+HTTP_PROXY_URL=""; HTTPS_PROXY_URL=""; NO_PROXY_LIST=""
+# shellcheck disable=SC1090
+[ -r "$CFG" ] && . "$CFG"
+: "${HTTPS_PROXY_URL:=$HTTP_PROXY_URL}"
+[ "$STATE" = on ] && [ -z "$HTTP_PROXY_URL" ] && { echo "proxy-docker: HTTP_PROXY_URL not set in $CFG" >&2; exit 1; }
+
+command -v python3 >/dev/null 2>&1 || { echo "proxy-docker: python3 is required for JSON editing" >&2; exit 1; }
+
+# _json FILE STATE MODE HTTP HTTPS NOPROXY  (MODE = client|daemon)
+_json() {
+python3 - "$@" <<'PY'
+import json, os, sys, tempfile
+path, state, mode, http, https, noproxy = sys.argv[1:7]
+try:
+    with open(path) as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        data = {}
+except Exception:
+    data = {}
+if mode == "client":           # ~/.docker/config.json  -> proxies.default.{httpProxy,...}
+    keys = ("httpProxy", "httpsProxy", "noProxy")
+    target = data.setdefault("proxies", {}).setdefault("default", {})
+else:                           # /etc/docker/daemon.json -> proxies.{http-proxy,...}
+    keys = ("http-proxy", "https-proxy", "no-proxy")
+    target = data.setdefault("proxies", {})
+if state == "on":
+    for k, v in zip(keys, (http, https, noproxy)):
+        if v:
+            target[k] = v
+else:
+    for k in keys:
+        target.pop(k, None)
+    if mode == "client" and not target:
+        data.get("proxies", {}).pop("default", None)
+    if "proxies" in data and not data["proxies"]:
+        data.pop("proxies", None)
+d = os.path.dirname(path) or "."
+os.makedirs(d, exist_ok=True)
+fd, tmp = tempfile.mkstemp(dir=d)
+with os.fdopen(fd, "w") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+os.chmod(tmp, 0o644 if mode == "daemon" else 0o600)
+os.replace(tmp, path)
+print("  %s: docker %s proxy -> %s" % (path, mode, state))
+PY
+}
+
+if [ $DO_CLIENT -eq 1 ]; then
+  CJSON="${DOCKER_CLIENT_JSON:-$USER_HOME/.docker/config.json}"
+  _json "$CJSON" "$STATE" client "$HTTP_PROXY_URL" "$HTTPS_PROXY_URL" "$NO_PROXY_LIST"
+  # if root wrote into the user's home (e.g. --all under sudo), hand it back
+  if [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-}" ] && [ "${DOCKER_CLIENT_JSON:-}" = "" ]; then
+    chown -R "$SUDO_USER" "$USER_HOME/.docker" 2>/dev/null || true
+  fi
+fi
+
+if [ $DO_DAEMON -eq 1 ]; then
+  DJSON="${DOCKER_DAEMON_JSON:-/etc/docker/daemon.json}"
+  case "$DJSON" in
+    /etc/*) [ "$(id -u)" = 0 ] || { echo "proxy-docker: --daemon writes $DJSON and restarts docker — run with sudo" >&2; exit 1; } ;;
+  esac
+  _json "$DJSON" "$STATE" daemon "$HTTP_PROXY_URL" "$HTTPS_PROXY_URL" "$NO_PROXY_LIST"
+  if [ $RESTART -eq 1 ]; then
+    echo "  restarting docker (dockerd reads daemon.json only on start)..."
+    systemctl restart docker && echo "  docker restarted" || echo "  ! 'systemctl restart docker' failed — restart it yourself"
+  else
+    echo "  (skipped restart; apply with: sudo systemctl restart docker)"
+  fi
+fi
