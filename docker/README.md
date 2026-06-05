@@ -65,6 +65,10 @@ This is intentionally **not** the default — auto-restarting Docker is disrupti
 ## Notes
 
 - Requires `python3` (present by default on Ubuntu) for safe JSON merging.
-- Linux/daemon-specific. On macOS, Docker Desktop manages the daemon proxy through its
-  own Settings UI; the client `~/.docker/config.json` part still applies.
+- **The daemon side is Linux / Docker Engine only.** macOS has no native Docker Engine —
+  Docker Desktop runs the daemon in a VM, and you set its proxy in *Settings → Resources →
+  Proxies* (the `/etc/docker/daemon.json` + systemd-restart steps don't apply there). The
+  **client** `~/.docker/config.json` part is portable and still works on macOS.
+- Verified live on Ubuntu: with the daemon proxy set, `docker run hello-world` pulled and
+  ran behind the corporate proxy (it failed beforehand).
 - Test/override paths via `DOCKER_CLIENT_JSON`, `DOCKER_DAEMON_JSON`, `PROXY_CONFIG`.

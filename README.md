@@ -150,6 +150,7 @@ add a scheduler when you want hands-off updates.
 | WSL2 | **Untested** — use manual `proxy-refresh` (systemd is opt-in; NAT'd networking) |
 | bash / zsh / fish | Supported |
 | Terminal.app / iTerm2 / Ghostty | Color cue verified |
+| Docker proxy (`proxy-docker`) | **Linux / Docker Engine** — verified on Ubuntu; macOS Docker Desktop uses its own proxy settings (client config.json still applies) |
 
 ## Troubleshooting
 
@@ -177,8 +178,13 @@ proxy-docker on|off                 # client (auto via on-change hook)
 sudo proxy-docker --daemon on|off   # daemon (deliberate; restarts dockerd)
 ```
 
-See [`docker/README.md`](docker/README.md) for details, including optional full
-automation of the daemon side.
+**Scope — Linux (Docker Engine) only.** This targets a native **Docker Engine**, as on
+Ubuntu, and is **verified live** there (the daemon proxy made `docker pull` succeed behind
+the corporate proxy). macOS has **no native Docker Engine** — Docker Desktop runs the daemon
+inside a VM and you set its proxy in *Settings → Resources → Proxies*, so the
+`/etc/docker/daemon.json` + systemd-restart parts don't apply on macOS. The **client**
+(`~/.docker/config.json`) part is portable and still works on macOS for build/run container
+env. See [`docker/README.md`](docker/README.md) for details and optional daemon-side automation.
 
 ## Roadmap / future ideas
 
