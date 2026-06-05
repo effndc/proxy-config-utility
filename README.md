@@ -151,6 +151,7 @@ add a scheduler when you want hands-off updates.
 | bash / zsh / fish | Supported |
 | Terminal.app / iTerm2 / Ghostty | Color cue verified |
 | Docker proxy (`proxy-docker`) | **Linux / Docker Engine** — verified on Ubuntu; macOS Docker Desktop uses its own proxy settings (client config.json still applies) |
+| APT proxy (`proxy-apt`) | **Debian/Ubuntu** — writes `/etc/apt/apt.conf.d/95proxy` (sudo; no restart) |
 
 ## Troubleshooting
 
@@ -186,13 +187,25 @@ inside a VM and you set its proxy in *Settings → Resources → Proxies*, so th
 (`~/.docker/config.json`) part is portable and still works on macOS for build/run container
 env. See [`docker/README.md`](docker/README.md) for details and optional daemon-side automation.
 
+## APT (Debian/Ubuntu)
+
+`bin/proxy-apt` writes/removes APT's proxy config so `apt update` / `apt install` go
+through the proxy when you're behind it and direct when you're not — no hand-editing:
+
+```sh
+sudo proxy-apt on|off    # writes/removes /etc/apt/apt.conf.d/95proxy (no restart)
+```
+
+Needs `sudo` (the file is under `/etc`); there's no daemon to restart. Not wired into the
+unprivileged `on-change` hook by default — run it deliberately, or see
+[`apt/README.md`](apt/README.md) for a narrow passwordless-sudo recipe to automate it
+(low-risk, since apt has no daemon to bounce). Debian-family only.
+
 ## Roadmap / future ideas
 
 More opt-in modules that extend the `on-change` hook so additional tools follow the
 detected proxy state (each gated on `proxy_yes`/`no_proxy`, keeping the core minimal):
 
-- **Ubuntu `apt` proxy** — write/remove `/etc/apt/apt.conf.d/95proxy`
-  (`Acquire::http::Proxy` / `Acquire::https::Proxy`) on state change (needs sudo).
 - **git HTTPS proxy without `dt`** — promote the `on-change` git-proxy snippet into a
   first-class, documented option (set/unset `http.proxy`/`https.proxy`), so corporate
   users get the `dt` behavior with nothing internal required.

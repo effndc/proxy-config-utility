@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# proxy-apt — write/remove APT's proxy config to match proxy state.
+#
+# Manages /etc/apt/apt.conf.d/95proxy (Acquire::http::Proxy / Acquire::https::Proxy).
+# Needs ROOT (the file is under /etc). No restart — apt reads its config each run.
+#
+# Usage:
+#   sudo proxy-apt on      # write the apt proxy file
+#   sudo proxy-apt off     # remove it (apt goes direct)
+#
+# Values come from ~/.config/proxy-config/config (HTTP_PROXY_URL; HTTPS defaults to it).
+# Under sudo, the invoking user's config is read via $SUDO_USER.
+# Test/override: APT_PROXY_FILE, PROXY_CONFIG.
+set -u
+
+STATE=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    on|proxy_yes) STATE=on ;;
+    off|no_proxy) STATE=off ;;
+    -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
+    *) echo "proxy-apt: unknown arg '$1' (try -h)" >&2; exit 2 ;;
+  esac; shift
+done
+[ -z "$STATE" ] && { echo "proxy-apt: need 'on' or 'off'" >&2; exit 2; }
+
+# Resolve the invoking user's config even under sudo.
+if [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-}" ]; then
+  USER_HOME="$(eval echo "~$SUDO_USER")"
+else
+  USER_HOME="$HOME"
+fi
+CFG="${PROXY_CONFIG:-$USER_HOME/.config/proxy-config/config}"
+HTTP_PROXY_URL=""; HTTPS_PROXY_URL=""
+# shellcheck disable=SC1090
+[ -r "$CFG" ] && . "$CFG"
+: "${HTTPS_PROXY_URL:=$HTTP_PROXY_URL}"
+
+APT_FILE="${APT_PROXY_FILE:-/etc/apt/apt.conf.d/95proxy}"
+case "$APT_FILE" in
+  /etc/*) [ "$(id -u)" = 0 ] || { echo "proxy-apt: writes $APT_FILE — run with sudo" >&2; exit 1; } ;;
+esac
+
+if [ "$STATE" = on ]; then
+  [ -z "$HTTP_PROXY_URL" ] && { echo "proxy-apt: HTTP_PROXY_URL not set in $CFG" >&2; exit 1; }
+  # apt expects a trailing slash on the proxy URL
+  h="$HTTP_PROXY_URL";  case "$h" in */) ;; *) h="$h/" ;; esac
+  s="$HTTPS_PROXY_URL"; case "$s" in */) ;; *) s="$s/" ;; esac
+  d="$(dirname "$APT_FILE")"; mkdir -p "$d"
+  tmp="$(mktemp "$d/.proxy-apt.XXXXXX")"
+  cat > "$tmp" <<EOF
+// Managed by proxy-config-utility (proxy-apt) — toggled by proxy state; do not edit.
+Acquire::http::Proxy "$h";
+Acquire::https::Proxy "$s";
+EOF
+  chmod 644 "$tmp"; mv -f "$tmp" "$APT_FILE"
+  echo "  wrote $APT_FILE (apt proxy ON)"
+else
+  if [ -e "$APT_FILE" ]; then rm -f "$APT_FILE"; echo "  removed $APT_FILE (apt proxy OFF)"
+  else echo "  $APT_FILE already absent (apt proxy OFF)"; fi
+fi

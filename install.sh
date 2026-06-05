@@ -44,7 +44,8 @@ mkdir -p "$BIN"
 ln -sf "$REPO/bin/proxy-detect"    "$BIN/proxy-detect"
 ln -sf "$REPO/bin/proxy-reachable" "$BIN/proxy-reachable"
 ln -sf "$REPO/bin/proxy-docker"    "$BIN/proxy-docker"
-say "installed $BIN/proxy-detect, proxy-reachable, proxy-docker"
+ln -sf "$REPO/bin/proxy-apt"       "$BIN/proxy-apt"
+say "installed $BIN/proxy-detect, proxy-reachable, proxy-docker, proxy-apt"
 case ":$PATH:" in *":$BIN:"*) :;; *) say "note: $BIN isn't on PATH — fine, the integration uses absolute paths";; esac
 hr
 
