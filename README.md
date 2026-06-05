@@ -39,6 +39,28 @@ don't remap, so the cue stays distinct everywhere. The prompt also embeds the co
 a **command substitution inside a fixed prompt string**, so shell integrations (iTerm2,
 VS Code) that cache the prompt don't freeze the color.
 
+## Bootstrapping behind a proxy
+
+Chicken-and-egg: a fresh machine behind a corporate proxy can't reach GitHub until a proxy
+is configured — but this repo is what configures it. Fetch it with a **one-off** proxy
+(replace `proxy.example.com:8080` with your HTTP proxy). Both work for a public repo with no
+SSH key:
+
+```sh
+# git over HTTPS (anonymous)
+https_proxy=http://proxy.example.com:8080 \
+  git clone https://github.com/effndc/proxy-config-utility.git
+
+# or, no git needed — download the tarball through the proxy
+https_proxy=http://proxy.example.com:8080 \
+  curl -L https://github.com/effndc/proxy-config-utility/archive/refs/heads/main.tar.gz | tar xz
+```
+
+Then run the installer (below); it sets up the *persistent* proxy config so subsequent
+git/network operations work without the one-off `https_proxy=` prefix. (If you must use SSH —
+e.g. a private mirror — clone with `GIT_SSH_COMMAND='ssh -o ProxyCommand="nc -X 5 -x
+SOCKS_HOST:1080 %h %p"' git clone git@…`.)
+
 ## Install
 
 ### Quick start (guided)
