@@ -1,57 +1,33 @@
 #!/usr/bin/env bash
 # proxy-config-utility — optional on-change hook.
 #
-# proxy-detect runs this (if it exists and is executable) every time it detects
-# state, passing the current status as $1: "proxy_yes" or "no_proxy".
+# proxy-detect runs this (if it exists and is executable) on every detection,
+# passing the current status as $1: "proxy_yes" or "no_proxy". Use it for side
+# effects that should follow the network state.
 #
-# Use it for any side effect that must follow the network state — most commonly
-# configuring git-over-HTTPS to use (or stop using) the proxy.
+# It delegates to the per-tool modules for the side effects that DON'T need root:
+#   - proxy-git    : git's global HTTP(S) proxy  (the generic replacement for an
+#                    internal "configure my git proxy" tool like `dt`/devtool,
+#                    which is NOT included in this repo)
+#   - proxy-docker : Docker CLIENT proxy (build/run container env)
 #
-# NOTE: The author's macOS setup calls an internal corporate tool, `dt` (aka
-# "devtool"), which manages GitHub configuration (including the git proxy). `dt`
-# is internal and is NOT included in this repo. This hook is the generic,
-# self-contained stand-in: it sets git's http/https proxy directly so you don't
-# need `dt` or any equivalent.
+# Root-only tools (apt, snap, the Docker daemon) write /etc or system config and
+# can't run from this unprivileged hook — toggle them deliberately (see below), or
+# wire the passwordless-sudo recipes in their READMEs.
 #
 # Install:
 #     cp config/on-change.example ~/.config/proxy-config/on-change
 #     chmod +x ~/.config/proxy-config/on-change
-#     $EDITOR ~/.config/proxy-config/on-change   # set PROXY below
 #
 # Keep it fast and non-interactive. proxy-detect ignores its output and errors.
 
 set -u
 status="${1:-no_proxy}"
 
-# CUSTOMIZE: your corporate HTTP proxy for git.
-PROXY="http://proxy.effndc.com:8080"
+command -v proxy-git    >/dev/null 2>&1 && proxy-git    "$status" >/dev/null 2>&1 || true
+command -v proxy-docker >/dev/null 2>&1 && proxy-docker "$status" >/dev/null 2>&1 || true
 
-case "$status" in
-  proxy_yes)
-    git config --global http.proxy  "$PROXY"
-    git config --global https.proxy "$PROXY"
-    ;;
-  *)
-    git config --global --unset http.proxy  2>/dev/null || true
-    git config --global --unset https.proxy 2>/dev/null || true
-    ;;
-esac
-
-# Optional: keep Docker's CLIENT proxy in sync (proxy env injected into
-# `docker build` / `docker run` containers; ~/.docker/config.json — no sudo, no
-# restart). Safe to run on every detection. The DAEMON side (`docker pull`) needs
-# root + a Docker restart, so it is NOT done here — run that yourself when you want
-# it:  sudo proxy-docker --daemon on   (and  ...off  when you leave the network).
-if command -v proxy-docker >/dev/null 2>&1; then
-  case "$status" in
-    proxy_yes) proxy-docker on  >/dev/null 2>&1 || true ;;
-    *)         proxy-docker off >/dev/null 2>&1 || true ;;
-  esac
-fi
-
-# Note: apt's proxy lives in /etc (root-owned), so it can't be toggled from this
-# unprivileged hook. Run it deliberately:  sudo proxy-apt on   (and  ...off  when you
-# leave the network). To automate it anyway, see the sudoers recipe in apt/README.md.
-#
-# Same for snap (snapd's proxy is system config, needs root):  sudo proxy-snap on / off
-# (snap/README.md has the optional sudoers recipe).
+# Root-only — run yourself when you change networks (or use sudoers automation):
+#   sudo proxy-apt  on|off          # /etc/apt/apt.conf.d/95proxy
+#   sudo proxy-snap on|off          # snap set system proxy.*
+#   sudo proxy-docker --daemon on|off   # /etc/docker/daemon.json (docker pull; restarts dockerd)

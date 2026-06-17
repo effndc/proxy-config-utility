@@ -176,6 +176,7 @@ add a scheduler when you want hands-off updates.
 | WSL2 | **Untested** — use manual `proxy-refresh` (systemd is opt-in; NAT'd networking) |
 | bash / zsh / fish | Supported |
 | Terminal.app / iTerm2 / Ghostty | Color cue verified |
+| git proxy (`proxy-git`) | **macOS + Linux** — `git config --global http.proxy/https.proxy` (no sudo) |
 | Docker proxy (`proxy-docker`) | **Linux / Docker Engine** — verified on Ubuntu; macOS Docker Desktop uses its own proxy settings (client config.json still applies) |
 | APT proxy (`proxy-apt`) | **Debian/Ubuntu** — writes `/etc/apt/apt.conf.d/95proxy` (sudo; no restart) |
 | Snap proxy (`proxy-snap`) | **Ubuntu/snapd** — `snap set system proxy.http/https` (sudo; no restart) |
@@ -193,6 +194,20 @@ add a scheduler when you want hands-off updates.
   the cache) or run `proxy-sync`.
 - **Probe always says proxy_yes/no:** confirm `PROXY_PROBE_HOST:PORT` is reachable *only*
   when behind the proxy; an always-on tunnel/VPN can keep it reachable.
+
+## git (HTTPS)
+
+`bin/proxy-git` sets/clears git's global HTTP(S) proxy (`~/.gitconfig`) so `git` over HTTPS
+works behind the proxy and direct otherwise — the generic replacement for an internal tool
+like `dt`/devtool:
+
+```sh
+proxy-git on|off    # git config --global http.proxy/https.proxy   [auto via on-change hook]
+```
+
+No sudo; cross-platform; invoked automatically by the `on-change` hook (single-writer, so no
+`.gitconfig.lock` races). git over **SSH** is handled separately by the SSH integration. See
+[`git/README.md`](git/README.md).
 
 ## Docker
 
@@ -245,9 +260,6 @@ passwordless-sudo recipe. Ubuntu/snapd only (no-ops if `snap` isn't installed).
 More opt-in modules that extend the `on-change` hook so additional tools follow the
 detected proxy state (each gated on `proxy_yes`/`no_proxy`, keeping the core minimal):
 
-- **git HTTPS proxy without `dt`** — promote the `on-change` git-proxy snippet into a
-  first-class, documented option (set/unset `http.proxy`/`https.proxy`), so corporate
-  users get the `dt` behavior with nothing internal required.
 - **Podman image pulls through the proxy** — manage Podman's proxy env
   (`containers.conf` `[engine] env`, or `~/.config/environment.d`) so `podman pull`
   works behind the proxy.
