@@ -1,40 +1,30 @@
 #!/usr/bin/env bash
-# proxy-git — set/clear git's global HTTP(S) proxy to match proxy state.
-#
-# Writes ~/.gitconfig via `git config --global`. NO sudo — run as your user.
-# This is the generic, self-contained replacement for an internal "configure my
-# git proxy" tool (e.g. `dt`/devtool), which is NOT included in this repo.
-#
-# Usage:
-#   proxy-git on      # git config --global http.proxy/https.proxy
-#   proxy-git off     # unset them
-#
-# Values come from ~/.config/proxy-config/config (HTTP_PROXY_URL; HTTPS defaults
-# to it). Run via the on-change hook (single-writer, so no .gitconfig.lock races).
-# Test/override: GIT_CONFIG_GLOBAL (points --global at a file), PROXY_CONFIG.
+# proxy-git — set/clear git's global HTTP(S) proxy (~/.gitconfig) to match proxy state.
+# NO sudo (per-user). The generic, self-contained replacement for an internal tool
+# like `dt`/devtool. git-over-SSH is handled separately by the SSH integration.
+#   proxy-git on|off
+# Values from ~/.config/proxy-config/config. Test overrides: GIT_CONFIG_GLOBAL, PROXY_CONFIG.
 set -u
+__self="${BASH_SOURCE[0]:-$0}"; [ -L "$__self" ] && __self="$(readlink "$__self")"
+. "$(cd "$(dirname "$__self")/../lib" && pwd)/proxy-common.sh" || { echo "proxy-git: cannot load shared lib" >&2; exit 1; }
+__pcu_init "${BASH_SOURCE[0]:-$0}"
 
 STATE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     on|proxy_yes) STATE=on ;;
     off|no_proxy) STATE=off ;;
-    -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,8p' "$PCU_SELF"; exit 0 ;;
     *) echo "proxy-git: unknown arg '$1' (try -h)" >&2; exit 2 ;;
   esac; shift
 done
 [ -z "$STATE" ] && { echo "proxy-git: need 'on' or 'off'" >&2; exit 2; }
 
 command -v git >/dev/null 2>&1 || { echo "proxy-git: git not found" >&2; exit 1; }
-
-CFG="${PROXY_CONFIG:-$HOME/.config/proxy-config/config}"
-HTTP_PROXY_URL=""; HTTPS_PROXY_URL=""
-# shellcheck disable=SC1090
-[ -r "$CFG" ] && . "$CFG"
-: "${HTTPS_PROXY_URL:=$HTTP_PROXY_URL}"
-
+__pcu_load_config
+__pcu_warn_placeholder
 if [ "$STATE" = on ]; then
-  [ -z "$HTTP_PROXY_URL" ] && { echo "proxy-git: HTTP_PROXY_URL not set in $CFG" >&2; exit 1; }
+  [ -z "$HTTP_PROXY_URL" ] && { echo "proxy-git: HTTP_PROXY_URL not set in $PCU_CONFIG" >&2; exit 1; }
   git config --global http.proxy  "$HTTP_PROXY_URL"
   git config --global https.proxy "$HTTPS_PROXY_URL"
   echo "  git proxy ON (http.proxy=$HTTP_PROXY_URL https.proxy=$HTTPS_PROXY_URL)"

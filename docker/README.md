@@ -18,9 +18,9 @@ handles for you. It merges into existing JSON, so other keys like `auths` or
 proxy-docker on                 # client scope: write ~/.docker/config.json proxies
 proxy-docker off                # client scope: remove them
 
-sudo ~/bin/proxy-docker --daemon on   # daemon scope: write /etc/docker/daemon.json + restart docker
-sudo ~/bin/proxy-docker --daemon off  # daemon scope: remove + restart
-sudo ~/bin/proxy-docker --daemon --no-restart on   # write only; restart later yourself
+proxy-docker --daemon on   # daemon scope: write /etc/docker/daemon.json + restart docker
+proxy-docker --daemon off  # daemon scope: remove + restart
+proxy-docker --daemon --no-restart on   # write only; restart later yourself
 
 proxy-docker on --all           # client + daemon (daemon part still needs root)
 ```
@@ -39,8 +39,8 @@ The **daemon** side restarts dockerd (killing running containers), so run it
 deliberately when you actually need `docker pull` to traverse the proxy:
 
 ```sh
-sudo ~/bin/proxy-docker --daemon on     # arriving on the proxied network
-sudo ~/bin/proxy-docker --daemon off    # leaving it
+proxy-docker --daemon on     # arriving on the proxied network
+proxy-docker --daemon off    # leaving it
 ```
 
 ## Fully automating the daemon side (optional, advanced)
@@ -56,8 +56,8 @@ youruser ALL=(root) NOPASSWD: /home/youruser/bin/proxy-docker --daemon on, /home
 Then in `~/.config/proxy-config/on-change`:
 ```sh
 case "$status" in
-  proxy_yes) sudo -n proxy-docker --daemon on  >/dev/null 2>&1 || true ;;
-  *)         sudo -n proxy-docker --daemon off >/dev/null 2>&1 || true ;;
+  proxy_yes) proxy-docker --daemon on  >/dev/null 2>&1 || true ;;
+  *)         proxy-docker --daemon off >/dev/null 2>&1 || true ;;
 esac
 ```
 This is intentionally **not** the default — auto-restarting Docker is disruptive.

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# proxy-setup — (re)configure proxy-config-utility interactively.
+# Prompts for your proxy settings (pre-filled from any current values), writes
+# ~/.config/proxy-config/config, then re-detects. Run it anytime to change values.
+set -u
+__self="${BASH_SOURCE[0]:-$0}"; [ -L "$__self" ] && __self="$(readlink "$__self")"
+. "$(cd "$(dirname "$__self")/../lib" && pwd)/proxy-common.sh" || { echo "proxy-setup: cannot load shared lib" >&2; exit 1; }
+__pcu_init "${BASH_SOURCE[0]:-$0}"
+
+case "${1:-}" in -h|--help) sed -n '2,5p' "$PCU_SELF"; exit 0 ;; esac
+
+CFG="${PROXY_CONFIG:-$HOME/.config/proxy-config/config}"
+echo "proxy-config-utility setup — writing $CFG"
+if [ -e "$CFG" ]; then
+  __pcu_yesno "Config exists — overwrite?" "y" || { echo "kept existing config."; exit 0; }
+  cp "$CFG" "$CFG.bak.$(date +%Y%m%d%H%M%S)" && echo "backed up existing config"
+fi
+echo "Enter your proxy settings (press Enter to accept the [default]):"
+__pcu_interview "$CFG"
+echo "wrote $CFG"
+
+# re-detect so the new values take effect
+if command -v proxy-detect >/dev/null 2>&1; then proxy-detect && echo "ran proxy-detect"
+elif [ -x "$PCU_REPO/bin/proxy-detect" ]; then "$PCU_REPO/bin/proxy-detect" && echo "ran proxy-detect"; fi
+echo "done — open a new shell or run 'proxy-sync' to adopt the new state."

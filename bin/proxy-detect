@@ -4,16 +4,19 @@
 # (b) set/unset http_proxy/etc. Portable across macOS and Linux. Safe to run
 # concurrently (single-instance mkdir lock).
 #
-# Configuration lives in ~/.config/proxy-config/config (see config.example).
-# Run it manually via the `proxy-refresh` shell function, or on a schedule
-# (macOS launchd / Linux systemd timer — see the repo's macos/ and linux/ dirs).
-#
-# This script is generic and contains NO site-specific values; customize via the
-# config file, not by editing here.
+# Configuration lives in ~/.config/proxy-config/config (see config/config.example).
+# Run it via the `proxy-refresh` shell function, or on a schedule (macOS launchd /
+# Linux systemd timer). Generic: NO site-specific values — customize the config.
 set -u
 
-# Sane PATH covering both macOS (Homebrew) and Linux locations.
+# Sane PATH covering both macOS (Homebrew) and Linux locations (also lets the
+# on-change hook find proxy-git/proxy-docker in ~/bin).
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/bin"
+
+# shared lib
+__self="${BASH_SOURCE[0]:-$0}"; [ -L "$__self" ] && __self="$(readlink "$__self")"
+. "$(cd "$(dirname "$__self")/../lib" && pwd)/proxy-common.sh" || { echo "proxy-detect: cannot load shared lib" >&2; exit 1; }
+__pcu_init "${BASH_SOURCE[0]:-$0}"
 
 OS="$(uname -s)"
 STATE_DIR="$HOME/.cache/proxy"
@@ -21,18 +24,10 @@ STATE_ENV="$STATE_DIR/state.env"     # POSIX: bash & zsh source this (export/uns
 STATE_FISH="$STATE_DIR/state.fish"   # fish sources this (set -gx / set -e)
 LOCK="$STATE_DIR/proxy-detect.lock"
 
-# ---- configuration (override in ~/.config/proxy-config/config) ----
-CONFIG="${PROXY_CONFIG:-$HOME/.config/proxy-config/config}"
-# shellcheck disable=SC1090
-[ -r "$CONFIG" ] && . "$CONFIG"
-: "${PROXY_PROBE_HOST:=proxy.effndc.com}"    # host reachable ONLY when behind the proxy
-: "${PROXY_PROBE_PORT:=8080}"                # port to test on that host
-: "${HTTP_PROXY_URL:=http://proxy.effndc.com:8080}"
-: "${HTTPS_PROXY_URL:=$HTTP_PROXY_URL}"
-: "${SOCKS_PROXY_URL:=socks5://proxy.effndc.com:1080}"
-: "${NO_PROXY_LIST:=127.0.0.1,localhost,.effndc.com,.internal,.local,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}"
-: "${PROXY_COLOR_ON:=38;5;33}"   # behind proxy  -> blue  (256-color cube; theme-independent)
-: "${PROXY_COLOR_OFF:=38;5;51}"  # direct        -> cyan
+__pcu_load_config                    # -> PROXY_PROBE_HOST/PORT, *_PROXY_URL, NO_PROXY_LIST, colors
+__pcu_warn_placeholder               # nudge if config is unset/example (surfaces via proxy-refresh)
+: "${PROXY_COLOR_ON:=38;5;33}"       # generic 256-color defaults (theme-independent)
+: "${PROXY_COLOR_OFF:=38;5;51}"
 HOOK="${PROXY_HOOK:-$HOME/.config/proxy-config/on-change}"
 
 mkdir -p "$STATE_DIR"
@@ -51,8 +46,6 @@ fi
 trap 'rmdir "$LOCK" 2>/dev/null' EXIT INT TERM
 
 # ---- reachability probe (2s budget) ----
-# macOS nc supports -G (connect timeout); Linux netcat-openbsd does not. Fall back
-# to bash's /dev/tcp when nc is absent (note: that fallback has no hard timeout).
 __reachable() {  # host port
     if command -v nc >/dev/null 2>&1; then
         case "$OS" in
@@ -64,15 +57,13 @@ __reachable() {  # host port
     fi
 }
 
-if __reachable "$PROXY_PROBE_HOST" "$PROXY_PROBE_PORT"; then
+if [ -n "$PROXY_PROBE_HOST" ] && __reachable "$PROXY_PROBE_HOST" "${PROXY_PROBE_PORT:-}"; then
     STATUS=proxy_yes; COLOR="$PROXY_COLOR_ON"
 else
     STATUS=no_proxy;  COLOR="$PROXY_COLOR_OFF"
 fi
 
-# ---- optional user hook (the generic stand-in for a corporate `dt`-style step) ----
-# Receives the status ("proxy_yes" | "no_proxy") as $1. Use it to set/unset e.g.
-# `git config --global http.proxy ...`. See config/on-change.example.
+# ---- optional user hook (e.g. git/docker-client proxy via proxy-git/proxy-docker) ----
 [ -x "$HOOK" ] && "$HOOK" "$STATUS" >/dev/null 2>&1 || true
 
 # ---- publish POSIX cache atomically (temp + rename on same filesystem) ----

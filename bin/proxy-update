@@ -1,30 +1,24 @@
 #!/usr/bin/env bash
 # proxy-update — pull the latest proxy-config-utility and relink its commands.
 #
-# Updates the on-box copy of the repo, then re-symlinks bin/* into ~/bin so any
-# newly added commands (e.g. a new proxy-* tool) show up. Shell snippets are
+# Updates the on-box copy of the repo, then re-symlinks the relevant bin/* into
+# ~/bin (OS/tool-aware: only commands whose tool is present). Shell snippets are
 # sourced from the repo, so new shells pick up changes with no action; run
 # 'proxy-sync' in an already-open shell to adopt env/prompt changes now.
 #
 # If the repo is a git checkout it does 'git pull'; otherwise it just relinks
 # (re-clone to enable pulling). Override the repo path with PROXY_REPO.
 set -u
+__self="${BASH_SOURCE[0]:-$0}"; [ -L "$__self" ] && __self="$(readlink "$__self")"
+. "$(cd "$(dirname "$__self")/../lib" && pwd)/proxy-common.sh" || { echo "proxy-update: cannot load shared lib" >&2; exit 1; }
+__pcu_init "${BASH_SOURCE[0]:-$0}"
 
-# Run from a function so the script is fully parsed before 'git pull' can rewrite
-# it on disk (self-update safety).
+case "${1:-}" in -h|--help) sed -n '2,9p' "$PCU_SELF"; exit 0 ;; esac
+
+# main() so the script is fully parsed before 'git pull' can rewrite it (self-update safety).
 main() {
-  # Resolve this script's real path (follow the ~/bin symlink) -> repo root.
-  local src="${BASH_SOURCE[0]:-$0}" t
-  while [ -L "$src" ]; do
-    t="$(readlink "$src")"
-    case "$t" in
-      /*) src="$t" ;;
-      *)  src="$(cd "$(dirname "$src")" && pwd)/$t" ;;
-    esac
-  done
-  local REPO="${PROXY_REPO:-$(cd "$(dirname "$src")/.." && pwd)}"
+  local REPO="${PROXY_REPO:-$PCU_REPO}"
   echo "repo: $REPO"
-
   if [ -d "$REPO/.git" ]; then
     echo "pulling latest..."
     git -C "$REPO" pull --ff-only || { echo "proxy-update: git pull failed" >&2; return 1; }
@@ -33,11 +27,8 @@ main() {
     echo "      to enable pull updates, re-clone it:"
     echo "        git clone https://github.com/effndc/proxy-config-utility.git \"$REPO\""
   fi
-
-  mkdir -p "$HOME/bin"
-  local f n=0
-  for f in "$REPO"/bin/*; do ln -sf "$f" "$HOME/bin/$(basename "$f")"; n=$((n + 1)); done
-  echo "linked $n commands into ~/bin: $(ls "$REPO"/bin | tr '\n' ' ')"
+  echo "relinking commands into ~/bin (OS/tool-aware):"
+  __pcu_link_bins "$REPO" "$HOME/bin"
   echo "done. New shells are current; in open shells run 'proxy-sync' (or 'proxy-refresh' to re-detect)."
 }
 main "$@"

@@ -29,6 +29,6 @@ command -v proxy-docker >/dev/null 2>&1 && proxy-docker "$status" >/dev/null 2>&
 
 # Root-only — run yourself when you change networks (or use sudoers automation).
 # Use the FULL path: sudo's PATH excludes ~/bin.
-#   sudo ~/bin/proxy-apt  on|off              # /etc/apt/apt.conf.d/95proxy
-#   sudo ~/bin/proxy-snap on|off              # snap set system proxy.*
-#   sudo ~/bin/proxy-docker --daemon on|off   # /etc/docker/daemon.json (docker pull; restarts dockerd)
+#   proxy-apt  on|off              # /etc/apt/apt.conf.d/95proxy
+#   proxy-snap on|off              # snap set system proxy.*
+#   proxy-docker --daemon on|off   # /etc/docker/daemon.json (docker pull; restarts dockerd)

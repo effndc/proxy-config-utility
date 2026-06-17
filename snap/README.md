@@ -11,13 +11,13 @@ config** and uses its own system setting.
 ## Usage
 
 ```sh
-sudo ~/bin/proxy-snap on      # snap set system proxy.http/https from your config
-sudo ~/bin/proxy-snap off     # snap unset system proxy.http/https
+proxy-snap on      # snap set system proxy.http/https from your config
+proxy-snap off     # snap unset system proxy.http/https
 ```
 
 Inspect manually: `snap get system proxy`. Values come from
 `~/.config/proxy-config/config` (`HTTP_PROXY_URL`; `HTTPS_PROXY_URL` defaults to it);
-under `sudo` the invoking user's config is read via `$SUDO_USER`. Needs `sudo` (snapd
+under `sudo` the invoking user's config is read via `$SUDO_USER`. Self-elevates (snapd
 system config is root-only); there's no daemon restart.
 
 ## Automating it (optional)
@@ -33,8 +33,8 @@ youruser ALL=(root) NOPASSWD: /home/youruser/bin/proxy-snap on, /home/youruser/b
 ```sh
 # in ~/.config/proxy-config/on-change
 case "$status" in
-  proxy_yes) sudo -n proxy-snap on  >/dev/null 2>&1 || true ;;
-  *)         sudo -n proxy-snap off >/dev/null 2>&1 || true ;;
+  proxy_yes) proxy-snap on  >/dev/null 2>&1 || true ;;
+  *)         proxy-snap off >/dev/null 2>&1 || true ;;
 esac
 ```
 Low-risk (applies live, no daemon bounce).

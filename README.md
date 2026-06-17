@@ -164,11 +164,12 @@ editing — the git/Docker/APT/Snap helpers all read the proxy URLs from the con
 - **`proxy-sync`** — adopt the latest cached state in this shell without re-detecting
   (no network); useful to immediately pick up a refresh done elsewhere.
 - **`proxy-git` / `proxy-docker` / `proxy-apt` / `proxy-snap`** — per-tool proxy toggles (see their sections).
+- **`proxy-setup`** — (re)enter your proxy settings interactively and re-detect.
 - **`proxy-update`** — pull the latest repo and relink commands (see [Updating](#updating)).
 
-> The no-sudo commands work by name once your shell is configured (the snippet adds `~/bin` to
-> `PATH`). The **root-only** helpers must use the **full path** under `sudo` — `sudo` resets
-> `PATH` and excludes `~/bin` — e.g. `sudo ~/bin/proxy-apt on`.
+> All commands work by name once your shell is configured (the snippet adds `~/bin` to `PATH`).
+> The root-only helpers (`proxy-apt`, `proxy-snap`, `proxy-docker --daemon`) **self-elevate** —
+> just run `proxy-apt on`; they print exactly what they'll do, then prompt for `sudo`.
 
 ## Updating
 
@@ -246,8 +247,8 @@ No sudo; cross-platform; invoked automatically by the `on-change` hook (single-w
 root + a Docker restart) on demand:
 
 ```sh
-proxy-docker on|off                      # client (auto via on-change hook)
-sudo ~/bin/proxy-docker --daemon on|off  # daemon (deliberate; restarts dockerd)
+proxy-docker on|off            # client (auto via on-change hook)
+proxy-docker --daemon on|off   # daemon (self-elevates; restarts dockerd)
 ```
 
 **Scope — Linux (Docker Engine) only.** This targets a native **Docker Engine**, as on
@@ -264,10 +265,10 @@ env. See [`docker/README.md`](docker/README.md) for details and optional daemon-
 through the proxy when you're behind it and direct when you're not — no hand-editing:
 
 ```sh
-sudo ~/bin/proxy-apt on|off    # writes/removes /etc/apt/apt.conf.d/95proxy (no restart)
+proxy-apt on|off    # self-elevates; writes/removes /etc/apt/apt.conf.d/95proxy (no restart)
 ```
 
-Needs `sudo` (the file is under `/etc`); there's no daemon to restart. Not wired into the
+Self-elevates (the file is under `/etc`); no daemon to restart. Not wired into the
 unprivileged `on-change` hook by default — run it deliberately, or see
 [`apt/README.md`](apt/README.md) for a narrow passwordless-sudo recipe to automate it
 (low-risk, since apt has no daemon to bounce). Debian-family only.
@@ -277,10 +278,10 @@ unprivileged `on-change` hook by default — run it deliberately, or see
 snapd ignores `http_proxy`/apt config and uses its own setting, so `bin/proxy-snap` wraps it:
 
 ```sh
-sudo ~/bin/proxy-snap on|off    # snap set/unset system proxy.http + proxy.https (applies live)
+proxy-snap on|off    # self-elevates; snap set/unset system proxy.http + proxy.https (applies live)
 ```
 
-Needs `sudo` (snapd system config is root-only); no restart. Not in the unprivileged hook
+Self-elevates (snapd system config is root-only); no restart. Not in the unprivileged hook
 by default — see [`snap/README.md`](snap/README.md) for usage and an optional
 passwordless-sudo recipe. Ubuntu/snapd only (no-ops if `snap` isn't installed).
 

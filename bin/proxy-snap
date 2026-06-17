@@ -1,25 +1,20 @@
 #!/usr/bin/env bash
-# proxy-snap — set/clear snapd's proxy to match proxy state.
-#
-# snapd ignores http_proxy env and apt config; it uses its OWN setting
-# (`snap set system proxy.*`). Needs ROOT (snap system config requires root).
-# Applies live — no restart.
-#
-# Usage:
-#   sudo ~/bin/proxy-snap on      # snap set system proxy.http/https
-#   sudo ~/bin/proxy-snap off     # snap unset system proxy.http/https
-#
-# Values come from ~/.config/proxy-config/config (HTTP_PROXY_URL; HTTPS defaults
-# to it). Under sudo the invoking user's config is read via $SUDO_USER.
-# Test/override: SNAP_CMD (default `snap`), PROXY_CONFIG.
+# proxy-snap — set/clear snapd's proxy (snap set system proxy.*) to match proxy state.
+# snapd ignores http_proxy/apt config and uses its own setting. Self-elevates (it's
+# root-only); applies live, no restart. Just run it as your user:
+#   proxy-snap on|off      # prompts for sudo
+# Values from ~/.config/proxy-config/config. Test overrides: SNAP_CMD, PROXY_CONFIG.
 set -u
+__self="${BASH_SOURCE[0]:-$0}"; [ -L "$__self" ] && __self="$(readlink "$__self")"
+. "$(cd "$(dirname "$__self")/../lib" && pwd)/proxy-common.sh" || { echo "proxy-snap: cannot load shared lib" >&2; exit 1; }
+__pcu_init "${BASH_SOURCE[0]:-$0}"
 
 STATE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     on|proxy_yes) STATE=on ;;
     off|no_proxy) STATE=off ;;
-    -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,8p' "$PCU_SELF"; exit 0 ;;
     *) echo "proxy-snap: unknown arg '$1' (try -h)" >&2; exit 2 ;;
   esac; shift
 done
@@ -27,24 +22,12 @@ done
 
 SNAP="${SNAP_CMD:-snap}"
 command -v "$SNAP" >/dev/null 2>&1 || { echo "proxy-snap: '$SNAP' not found (not a snapd system?)" >&2; exit 1; }
-# snap system config requires root (skip the check only when SNAP_CMD is overridden for testing)
-if [ -z "${SNAP_CMD:-}" ]; then
-  [ "$(id -u)" = 0 ] || { echo "proxy-snap: needs root — run with sudo" >&2; exit 1; }
-fi
+[ -z "${SNAP_CMD:-}" ] && __pcu_need_root "snap set system proxy.http/https ($STATE)" "$STATE"
 
-if [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-}" ]; then
-  USER_HOME="$(eval echo "~$SUDO_USER")"
-else
-  USER_HOME="$HOME"
-fi
-CFG="${PROXY_CONFIG:-$USER_HOME/.config/proxy-config/config}"
-HTTP_PROXY_URL=""; HTTPS_PROXY_URL=""
-# shellcheck disable=SC1090
-[ -r "$CFG" ] && . "$CFG"
-: "${HTTPS_PROXY_URL:=$HTTP_PROXY_URL}"
-
+__pcu_load_config
+__pcu_warn_placeholder
 if [ "$STATE" = on ]; then
-  [ -z "$HTTP_PROXY_URL" ] && { echo "proxy-snap: HTTP_PROXY_URL not set in $CFG" >&2; exit 1; }
+  [ -z "$HTTP_PROXY_URL" ] && { echo "proxy-snap: HTTP_PROXY_URL not set in $PCU_CONFIG" >&2; exit 1; }
   "$SNAP" set system proxy.http="$HTTP_PROXY_URL" proxy.https="$HTTPS_PROXY_URL" \
     && echo "  snap proxy ON (http=$HTTP_PROXY_URL https=$HTTPS_PROXY_URL)"
 else

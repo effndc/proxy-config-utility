@@ -16,8 +16,8 @@ the invoking user's config is read via `$SUDO_USER`. Linux/Debian-family only.
 ## Usage
 
 ```sh
-sudo ~/bin/proxy-apt on      # arriving on the proxied network
-sudo ~/bin/proxy-apt off     # leaving it (apt goes direct)
+proxy-apt on      # arriving on the proxied network
+proxy-apt off     # leaving it (apt goes direct)
 ```
 
 It needs `sudo` because the file is under `/etc`. There's no daemon to restart.
@@ -35,8 +35,8 @@ youruser ALL=(root) NOPASSWD: /home/youruser/bin/proxy-apt on, /home/youruser/bi
 ```sh
 # in ~/.config/proxy-config/on-change
 case "$status" in
-  proxy_yes) sudo -n proxy-apt on  >/dev/null 2>&1 || true ;;
-  *)         sudo -n proxy-apt off >/dev/null 2>&1 || true ;;
+  proxy_yes) proxy-apt on  >/dev/null 2>&1 || true ;;
+  *)         proxy-apt off >/dev/null 2>&1 || true ;;
 esac
 ```
 apt has no daemon to bounce, so (unlike the Docker daemon) automating it is low-risk.
