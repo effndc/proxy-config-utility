@@ -21,7 +21,7 @@ main() {
   echo "repo: $REPO"
   if [ -d "$REPO/.git" ]; then
     echo "pulling latest..."
-    git -C "$REPO" pull --ff-only || { echo "proxy-update: git pull failed" >&2; return 1; }
+    git -C "$REPO" pull --ff-only || echo "proxy-update: git pull failed (offline/auth?) — relinking the current checkout anyway." >&2
   else
     echo "note: $REPO is not a git checkout — skipping pull."
     echo "      to enable pull updates, re-clone it:"
