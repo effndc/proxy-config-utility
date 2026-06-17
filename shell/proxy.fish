@@ -13,6 +13,8 @@
 
 set -g PROXY_STATE "$HOME/.cache/proxy/state.fish"
 set -q PROXY_DETECT; or set -g PROXY_DETECT "$HOME/bin/proxy-detect"
+# make the proxy-* commands runnable by name (they live in ~/bin)
+if not contains "$HOME/bin" $PATH; set -gx PATH "$HOME/bin" $PATH; end
 
 function __proxy_sync --description 'adopt cached proxy state'
     test -r "$PROXY_STATE"; and source "$PROXY_STATE"

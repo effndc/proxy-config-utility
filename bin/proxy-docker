@@ -10,7 +10,7 @@
 #
 # Usage:
 #   proxy-docker on|off                  # client scope, as your user
-#   sudo proxy-docker --daemon on|off    # daemon scope (root); --no-restart to skip
+#   sudo ~/bin/proxy-docker --daemon on|off    # daemon scope (root); --no-restart to skip
 #   proxy-docker on|off --all            # client + daemon (daemon part needs root)
 #
 # Values come from ~/.config/proxy-config/config (HTTP_PROXY_URL / HTTPS_PROXY_URL /

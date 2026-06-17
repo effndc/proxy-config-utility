@@ -11,8 +11,8 @@ config** and uses its own system setting.
 ## Usage
 
 ```sh
-sudo proxy-snap on      # snap set system proxy.http/https from your config
-sudo proxy-snap off     # snap unset system proxy.http/https
+sudo ~/bin/proxy-snap on      # snap set system proxy.http/https from your config
+sudo ~/bin/proxy-snap off     # snap unset system proxy.http/https
 ```
 
 Inspect manually: `snap get system proxy`. Values come from

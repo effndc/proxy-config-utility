@@ -27,7 +27,8 @@ status="${1:-no_proxy}"
 command -v proxy-git    >/dev/null 2>&1 && proxy-git    "$status" >/dev/null 2>&1 || true
 command -v proxy-docker >/dev/null 2>&1 && proxy-docker "$status" >/dev/null 2>&1 || true
 
-# Root-only — run yourself when you change networks (or use sudoers automation):
-#   sudo proxy-apt  on|off          # /etc/apt/apt.conf.d/95proxy
-#   sudo proxy-snap on|off          # snap set system proxy.*
-#   sudo proxy-docker --daemon on|off   # /etc/docker/daemon.json (docker pull; restarts dockerd)
+# Root-only — run yourself when you change networks (or use sudoers automation).
+# Use the FULL path: sudo's PATH excludes ~/bin.
+#   sudo ~/bin/proxy-apt  on|off              # /etc/apt/apt.conf.d/95proxy
+#   sudo ~/bin/proxy-snap on|off              # snap set system proxy.*
+#   sudo ~/bin/proxy-docker --daemon on|off   # /etc/docker/daemon.json (docker pull; restarts dockerd)

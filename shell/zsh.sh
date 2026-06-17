@@ -14,6 +14,8 @@
 
 PROXY_STATE="$HOME/.cache/proxy/state.env"
 PROXY_DETECT="${PROXY_DETECT:-$HOME/bin/proxy-detect}"
+# make the proxy-* commands runnable by name (they live in ~/bin)
+case ":$PATH:" in *":$HOME/bin:"*) ;; *) PATH="$HOME/bin:$PATH" ;; esac
 
 [ -r "$PROXY_STATE" ] && . "$PROXY_STATE"
 : "${PROXY_COLOR:=38;5;51}"                      # default cyan until cache is warm

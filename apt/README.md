@@ -16,8 +16,8 @@ the invoking user's config is read via `$SUDO_USER`. Linux/Debian-family only.
 ## Usage
 
 ```sh
-sudo proxy-apt on      # arriving on the proxied network
-sudo proxy-apt off     # leaving it (apt goes direct)
+sudo ~/bin/proxy-apt on      # arriving on the proxied network
+sudo ~/bin/proxy-apt off     # leaving it (apt goes direct)
 ```
 
 It needs `sudo` because the file is under `/etc`. There's no daemon to restart.

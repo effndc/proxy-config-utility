@@ -5,8 +5,8 @@
 # Needs ROOT (the file is under /etc). No restart — apt reads its config each run.
 #
 # Usage:
-#   sudo proxy-apt on      # write the apt proxy file
-#   sudo proxy-apt off     # remove it (apt goes direct)
+#   sudo ~/bin/proxy-apt on      # write the apt proxy file
+#   sudo ~/bin/proxy-apt off     # remove it (apt goes direct)
 #
 # Values come from ~/.config/proxy-config/config (HTTP_PROXY_URL; HTTPS defaults to it).
 # Under sudo, the invoking user's config is read via $SUDO_USER.

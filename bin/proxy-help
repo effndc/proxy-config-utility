@@ -45,10 +45,10 @@ else
 fi
 echo
 echo "PER-TOOL PROXY   (apply when BEHIND the proxy; use 'off' when you leave)"
-echo "  Docker client   proxy-docker on|off                  [auto via on-change hook]  ($(avail docker))"
-echo "  Docker daemon   sudo proxy-docker --daemon on|off    docker pull; restarts dockerd"
-echo "  APT             sudo proxy-apt on|off                ($(have apt-get && echo available || echo 'not installed'))"
-echo "  Snap            sudo proxy-snap on|off               ($(avail snap))"
+echo "  Docker client   proxy-docker on|off                       [auto via on-change hook]  ($(avail docker))"
+echo "  Docker daemon   sudo $HOME/bin/proxy-docker --daemon on|off   docker pull; restarts dockerd"
+echo "  APT             sudo $HOME/bin/proxy-apt on|off               ($(have apt-get && echo available || echo 'not installed'))"
+echo "  Snap            sudo $HOME/bin/proxy-snap on|off              ($(avail snap))"
 echo "  git (HTTPS)     proxy-git on|off                     [auto via on-change hook]  ($(avail git))"
 echo "  SSH             automatic via ~/.ssh/config Match — no action needed"
 echo

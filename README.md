@@ -166,6 +166,10 @@ editing — the git/Docker/APT/Snap helpers all read the proxy URLs from the con
 - **`proxy-git` / `proxy-docker` / `proxy-apt` / `proxy-snap`** — per-tool proxy toggles (see their sections).
 - **`proxy-update`** — pull the latest repo and relink commands (see [Updating](#updating)).
 
+> The no-sudo commands work by name once your shell is configured (the snippet adds `~/bin` to
+> `PATH`). The **root-only** helpers must use the **full path** under `sudo` — `sudo` resets
+> `PATH` and excludes `~/bin` — e.g. `sudo ~/bin/proxy-apt on`.
+
 ## Updating
 
 Because the shell snippets are `source`d from the repo and the `~/bin/proxy-*` commands are
@@ -242,8 +246,8 @@ No sudo; cross-platform; invoked automatically by the `on-change` hook (single-w
 root + a Docker restart) on demand:
 
 ```sh
-proxy-docker on|off                 # client (auto via on-change hook)
-sudo proxy-docker --daemon on|off   # daemon (deliberate; restarts dockerd)
+proxy-docker on|off                      # client (auto via on-change hook)
+sudo ~/bin/proxy-docker --daemon on|off  # daemon (deliberate; restarts dockerd)
 ```
 
 **Scope — Linux (Docker Engine) only.** This targets a native **Docker Engine**, as on
@@ -260,7 +264,7 @@ env. See [`docker/README.md`](docker/README.md) for details and optional daemon-
 through the proxy when you're behind it and direct when you're not — no hand-editing:
 
 ```sh
-sudo proxy-apt on|off    # writes/removes /etc/apt/apt.conf.d/95proxy (no restart)
+sudo ~/bin/proxy-apt on|off    # writes/removes /etc/apt/apt.conf.d/95proxy (no restart)
 ```
 
 Needs `sudo` (the file is under `/etc`); there's no daemon to restart. Not wired into the
@@ -273,7 +277,7 @@ unprivileged `on-change` hook by default — run it deliberately, or see
 snapd ignores `http_proxy`/apt config and uses its own setting, so `bin/proxy-snap` wraps it:
 
 ```sh
-sudo proxy-snap on|off    # snap set/unset system proxy.http + proxy.https (applies live)
+sudo ~/bin/proxy-snap on|off    # snap set/unset system proxy.http + proxy.https (applies live)
 ```
 
 Needs `sudo` (snapd system config is root-only); no restart. Not in the unprivileged hook

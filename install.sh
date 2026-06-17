@@ -45,7 +45,7 @@ for s in proxy-detect proxy-reachable proxy-git proxy-docker proxy-apt proxy-sna
   ln -sf "$REPO/bin/$s" "$BIN/$s"
 done
 say "installed proxy-{detect,reachable,git,docker,apt,snap,help,update} in $BIN"
-case ":$PATH:" in *":$BIN:"*) :;; *) say "note: $BIN isn't on PATH — fine, the integration uses absolute paths";; esac
+case ":$PATH:" in *":$BIN:"*) :;; *) say "note: $BIN isn't on PATH yet — the shell snippet adds it, so the proxy-* commands work in NEW shells. (sudo excludes ~/bin, so use full paths like 'sudo $BIN/proxy-apt on'.)";; esac
 hr
 
 # 2) interview
@@ -135,11 +135,11 @@ EOF
 fi
 hr
 
-# 7) git-proxy on-change hook
-if yesno "Install on-change hook to set git's http/https proxy automatically?" "n"; then
+# 7) on-change hook (auto-applies the no-sudo proxies: git + Docker client)
+if yesno "Install on-change hook (auto git + Docker-client proxy on each detection)?" "y"; then
   HOOK="$CFG_DIR/on-change"
-  sed "s#http://proxy.effndc.com:8080#$HTTP_URL#g" "$REPO/config/on-change.example" > "$HOOK"
-  chmod +x "$HOOK"; say "  + installed $HOOK (git proxy -> $HTTP_URL)"
+  cp "$REPO/config/on-change.example" "$HOOK"; chmod +x "$HOOK"
+  say "  + installed $HOOK (delegates to proxy-git + proxy-docker; no editing needed)"
 fi
 hr
 
@@ -147,6 +147,13 @@ hr
 say "Priming detection..."
 "$BIN/proxy-detect" && say "  ran proxy-detect"
 say "Current state:"; sed 's/^/  /' "$HOME/.cache/proxy/state.env" 2>/dev/null
+case "$PROBE_HOST" in
+  *example.com) say ""; say "!! probe host is still the placeholder '$PROBE_HOST' — edit $CFG and run 'proxy-refresh'." ;;
+esac
 hr
-say "Done. Open a NEW shell (or re-source your rc) for the colored prompt."
-say "Commands: 'proxy-refresh' (re-detect now), 'proxy-sync' (adopt cached state)."
+say "Done. Open a NEW shell (or re-source your rc) for the colored prompt + proxy-* commands."
+say "Try:  proxy-help                  # current state + every command"
+say "      proxy-refresh / proxy-sync  # re-detect / adopt cached state"
+say "      proxy-update                # pull latest + relink commands"
+say "Root-only proxies need the FULL path (sudo's PATH excludes ~/bin):"
+say "      sudo $BIN/proxy-apt on   |   sudo $BIN/proxy-snap on   |   sudo $BIN/proxy-docker --daemon on"

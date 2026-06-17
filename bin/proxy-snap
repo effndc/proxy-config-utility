@@ -6,8 +6,8 @@
 # Applies live — no restart.
 #
 # Usage:
-#   sudo proxy-snap on      # snap set system proxy.http/https
-#   sudo proxy-snap off     # snap unset system proxy.http/https
+#   sudo ~/bin/proxy-snap on      # snap set system proxy.http/https
+#   sudo ~/bin/proxy-snap off     # snap unset system proxy.http/https
 #
 # Values come from ~/.config/proxy-config/config (HTTP_PROXY_URL; HTTPS defaults
 # to it). Under sudo the invoking user's config is read via $SUDO_USER.
