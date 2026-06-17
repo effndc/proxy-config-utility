@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# proxy-help — show current proxy state and how to set/apply each proxy tool.
+# Reads ~/.cache/proxy/state.env and ~/.config/proxy-config/config; adapts to what's
+# installed and which scheduler is active. Read-only.
+set -u
+STATE_DIR="$HOME/.cache/proxy"; STATE="$STATE_DIR/state.env"
+CFG="${PROXY_CONFIG:-$HOME/.config/proxy-config/config}"
+OS="$(uname -s)"
+have(){ command -v "$1" >/dev/null 2>&1; }
+avail(){ have "$1" && echo available || echo "not installed"; }
+
+status="unknown"; color="n/a"
+if [ -r "$STATE" ]; then
+  # shellcheck disable=SC1090
+  . "$STATE" 2>/dev/null
+  status="${PROXY_STATUS:-?}"; color="${PROXY_COLOR:-?}"
+fi
+
+echo "proxy-config-utility — status & commands"
+echo "========================================"
+printf 'state:  %s   (prompt color %s)\n' "$status" "$color"
+[ -r "$STATE" ] && printf 'cache:  %s\n' "$(sed -n '1s/^# *//p' "$STATE")"
+if [ -r "$CFG" ]; then
+  ( . "$CFG" 2>/dev/null
+    printf 'config: %s\n        probe %s:%s   http %s   socks %s\n' \
+      "$CFG" "${PROXY_PROBE_HOST:-?}" "${PROXY_PROBE_PORT:-?}" "${HTTP_PROXY_URL:-?}" "${SOCKS_PROXY_URL:-?}" )
+else
+  printf 'config: %s   (MISSING — copy config/config.example there and edit)\n' "$CFG"
+fi
+echo
+echo "DETECT / REFRESH"
+echo "  proxy-refresh     re-detect now and update the cache   (shell function)"
+echo "  proxy-sync        adopt cached state in this shell, no re-detect  (shell function)"
+echo "  proxy-detect      run the detector script directly"
+if [ "$OS" = Darwin ]; then
+  if launchctl print "gui/$(id -u)/local.proxy-detect" >/dev/null 2>&1 \
+     || launchctl print "gui/$(id -u)/local.job.proxy-detect" >/dev/null 2>&1; then
+    echo "  auto:  macOS launchd agent loaded"
+  else echo "  auto:  launchd agent not loaded — manual mode (run proxy-refresh)"; fi
+else
+  if systemctl --user is-active proxy-detect.timer >/dev/null 2>&1; then
+    echo "  auto:  systemd --user timer active"
+  else echo "  auto:  no systemd timer — manual mode (run proxy-refresh)"; fi
+fi
+echo
+echo "PER-TOOL PROXY   (apply when BEHIND the proxy; use 'off' when you leave)"
+echo "  Docker client   proxy-docker on|off                  [auto via on-change hook]  ($(avail docker))"
+echo "  Docker daemon   sudo proxy-docker --daemon on|off    docker pull; restarts dockerd"
+echo "  APT             sudo proxy-apt on|off                ($(have apt-get && echo available || echo 'not installed'))"
+echo "  Snap            sudo proxy-snap on|off               ($(avail snap))"
+echo "  git (HTTPS)     handled automatically by the on-change hook"
+echo "  SSH             automatic via ~/.ssh/config Match — no action needed"
+echo
+echo "EDIT SETTINGS"
+echo "  \$EDITOR $CFG   (then: proxy-refresh)"
+echo "  per-tool details: README.md and {docker,apt,snap}/README.md in the repo"

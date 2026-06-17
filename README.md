@@ -152,9 +152,13 @@ The shell snippets contain **no** site-specific values and don't need editing.
 
 ## Commands
 
+- **`proxy-help`** — show current state, your config (and its values), and every command
+  per tool — adapting to what's installed and which scheduler is active. Start here if you
+  forget the rest.
 - **`proxy-refresh`** — run detection now and adopt the result in this shell.
 - **`proxy-sync`** — adopt the latest cached state in this shell without re-detecting
   (no network); useful to immediately pick up a refresh done elsewhere.
+- **`proxy-docker` / `proxy-apt` / `proxy-snap`** — per-tool proxy toggles (see their sections).
 
 ## Manual vs automatic detection
 
