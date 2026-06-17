@@ -6,6 +6,9 @@ without slowing down shell startup or fighting itself when many shells start at 
 
 - **Prompt color** changes based on proxy state (e.g. blue = behind proxy, cyan = direct).
 - **`http_proxy` / `https_proxy` / `socks_proxy` / `no_proxy`** are set or unset automatically.
+- **Per-tool proxy** for **git, Docker, APT, and Snap** follows the same state — git and the
+  Docker client toggle automatically via the on-change hook; APT, Snap, and the Docker daemon
+  are one-command `sudo` helpers (they touch root-owned config).
 - **Detection is decoupled from shell startup**: one detector writes a small cache file;
   every shell just reads it (instant, lock-free). Detection runs on a schedule (macOS
   launchd / Linux systemd) or **manually** via `proxy-refresh`.
@@ -71,20 +74,21 @@ SOCKS_HOST:1080 %h %p"' git clone git@…`.)
 
 The interactive installer asks for your proxy settings (probe host/port, HTTP/HTTPS/SOCKS
 URLs, `no_proxy`, prompt colors), then installs the scripts, wires up your shell(s), offers
-automatic detection (macOS launchd / Linux systemd timer), optional SSH routing, and an
-optional git-proxy hook. It's safe to re-run and backs up anything it changes. Prefer the
+automatic detection (macOS launchd / Linux systemd timer), optional SSH routing, and the
+optional on-change hook (auto git + Docker-client proxy). It's safe to re-run and backs up
+anything it changes. Prefer the
 manual steps below if you'd rather see exactly what gets written.
 
 ### Manual
 
-1. **Get the scripts on your PATH.** Symlink (or copy) `bin/proxy-detect` to `~/bin`
-   (and `bin/proxy-reachable` too if you'll use the SSH integration):
+1. **Get the scripts on your PATH.** Symlink all of `bin/` into `~/bin` (the on-change hook
+   and `proxy-help` expect `proxy-git`/`proxy-docker`/etc. to be findable):
    ```sh
    mkdir -p ~/bin
-   ln -s "$PWD/bin/proxy-detect"    ~/bin/proxy-detect      # ensure ~/bin is on your PATH
-   ln -s "$PWD/bin/proxy-reachable" ~/bin/proxy-reachable   # only needed for SSH integration
+   ln -s "$PWD"/bin/proxy-* ~/bin/   # detect, reachable, git, docker, apt, snap, help
    ```
-   (Or point the shell snippet at the detector with `export PROXY_DETECT=/path/to/bin/proxy-detect`.)
+   Ensure `~/bin` is on your `PATH`. (At minimum you need `proxy-detect`; `proxy-reachable`
+   is used by the SSH integration, and `proxy-git`/`proxy-docker` by the on-change hook.)
 
 2. **Create your config** (this is the only file you must edit):
    ```sh
@@ -124,18 +128,19 @@ manual steps below if you'd rather see exactly what gets written.
    `ProxyCommand`. Requires `bin/proxy-reachable` on your PATH (step 1) — it does the
    OS-correct `nc` connect-timeout so the config is portable between macOS and Linux.
 
-7. **(Optional) on-change hook** — e.g. configure git-over-HTTPS to use the proxy:
+7. **(Optional) on-change hook** — auto-apply the no-sudo proxies (git + Docker client) on
+   every detection. Just install it (no editing — it reads your config via the modules):
    ```sh
    cp config/on-change.example ~/.config/proxy-config/on-change
    chmod +x ~/.config/proxy-config/on-change
-   $EDITOR ~/.config/proxy-config/on-change
    ```
+   It calls `proxy-git` and `proxy-docker` for you; the root-only tools (APT, Snap, Docker
+   daemon) stay as deliberate `sudo` commands (the hook documents them).
 
-   > **About `dt` / "devtool":** the author's macOS setup runs an internal corporate
-   > tool, `dt` (aka *devtool*), to manage GitHub configuration — including the git
-   > proxy. `dt` is internal and is **not included in this repo**. The `on-change`
-   > hook above is the generic, self-contained replacement: it sets git's HTTP/HTTPS
-   > proxy directly, so you don't need `dt` or any equivalent.
+   > **About `dt` / "devtool":** the author's macOS setup runs an internal corporate tool,
+   > `dt` (aka *devtool*), to manage GitHub config — including the git proxy. `dt` is internal
+   > and **not included here**; `proxy-git` (invoked by this hook) is the generic, self-contained
+   > replacement, so you don't need `dt` or any equivalent.
 
 ## What you must customize
 
@@ -146,9 +151,9 @@ manual steps below if you'd rather see exactly what gets written.
 | `NO_PROXY_LIST` | `~/.config/proxy-config/config` | add your internal domains + CIDRs |
 | Prompt colors (optional) | `~/.config/proxy-config/config` | `38;5;33` (on) / `38;5;51` (off) |
 | SSH SOCKS host:port (optional) | `ssh/proxy.sshconfig` | `SOCKS_PROXY_HOST:SOCKS_PROXY_PORT` |
-| git-proxy / other side effects (optional) | `~/.config/proxy-config/on-change` | your script |
 
-The shell snippets contain **no** site-specific values and don't need editing.
+The shell snippets and the `on-change` hook contain **no** site-specific values and don't need
+editing — the git/Docker/APT/Snap helpers all read the proxy URLs from the config above.
 
 ## Commands
 
@@ -158,7 +163,7 @@ The shell snippets contain **no** site-specific values and don't need editing.
 - **`proxy-refresh`** — run detection now and adopt the result in this shell.
 - **`proxy-sync`** — adopt the latest cached state in this shell without re-detecting
   (no network); useful to immediately pick up a refresh done elsewhere.
-- **`proxy-docker` / `proxy-apt` / `proxy-snap`** — per-tool proxy toggles (see their sections).
+- **`proxy-git` / `proxy-docker` / `proxy-apt` / `proxy-snap`** — per-tool proxy toggles (see their sections).
 
 ## Manual vs automatic detection
 
@@ -172,7 +177,7 @@ add a scheduler when you want hands-off updates.
 | | Status |
 |---|---|
 | macOS | Tested (launchd auto-detect + manual) |
-| Linux (Ubuntu) | Detector + SSH helper verified on Ubuntu (OpenBSD netcat, bash 5.2, dash `/bin/sh`): `nc` flags, connect-timeout, `stat -c`, `date -u`, `mktemp`, mkdir-lock all confirmed. systemd units remain a proposal. |
+| Linux (Ubuntu) | Verified on Ubuntu: detector, SSH helper/routing, the `systemd --user` timer (enabled + recurring), and the git/Docker/APT/Snap helpers. (`nc` flags, connect-timeout, `stat -c`, `date -u`, `mktemp`, mkdir-lock all confirmed.) |
 | WSL2 | **Untested** — use manual `proxy-refresh` (systemd is opt-in; NAT'd networking) |
 | bash / zsh / fish | Supported |
 | Terminal.app / iTerm2 / Ghostty | Color cue verified |
