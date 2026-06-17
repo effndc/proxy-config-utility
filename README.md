@@ -199,7 +199,8 @@ git reach GitHub):
 ```sh
 rm -rf ~/proxy-config-utility
 git clone https://github.com/effndc/proxy-config-utility.git ~/proxy-config-utility
-proxy-update      # relinks; from now on updating is just `proxy-update`
+# run the freshly-cloned copy by path — an old install may not have ~/bin/proxy-update yet:
+~/proxy-config-utility/bin/proxy-update     # relinks (creates ~/bin/proxy-update); afterwards just `proxy-update`
 ```
 
 Your config, the `on-change` hook, scheduler, and SSH settings live outside the repo and are
