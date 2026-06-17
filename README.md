@@ -190,6 +190,21 @@ proxy-update      # git pull + re-symlink bin/* into ~/bin
 
 Typical flow: `git push` from your dev machine → `proxy-update` on each box.
 
+### Upgrading an older (tarball) install
+
+Early installs may have the repo as an **extracted tarball** rather than a git clone, so
+`proxy-update` can relink but can't `git pull`. Convert it once (your configured proxy lets
+git reach GitHub):
+
+```sh
+rm -rf ~/proxy-config-utility
+git clone https://github.com/effndc/proxy-config-utility.git ~/proxy-config-utility
+proxy-update      # relinks; from now on updating is just `proxy-update`
+```
+
+Your config, the `on-change` hook, scheduler, and SSH settings live outside the repo and are
+untouched.
+
 ## Manual vs automatic detection
 
 Detection only *runs* when something invokes `proxy-detect` — a scheduler or you via

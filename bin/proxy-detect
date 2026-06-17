@@ -18,6 +18,8 @@ __self="${BASH_SOURCE[0]:-$0}"; [ -L "$__self" ] && __self="$(readlink "$__self"
 . "$(cd "$(dirname "$__self")/../lib" && pwd)/proxy-common.sh" || { echo "proxy-detect: cannot load shared lib" >&2; exit 1; }
 __pcu_init "${BASH_SOURCE[0]:-$0}"
 
+case "${1:-}" in -h|--help) sed -n '2,8p' "$PCU_SELF"; exit 0 ;; esac
+
 OS="$(uname -s)"
 STATE_DIR="$HOME/.cache/proxy"
 STATE_ENV="$STATE_DIR/state.env"     # POSIX: bash & zsh source this (export/unset)
