@@ -32,6 +32,7 @@ echo "DETECT / REFRESH"
 echo "  proxy-refresh     re-detect now and update the cache   (shell function)"
 echo "  proxy-sync        adopt cached state in this shell, no re-detect  (shell function)"
 echo "  proxy-detect      run the detector script directly"
+echo "  proxy-update      git pull the repo + relink commands (pick up new features)"
 if [ "$OS" = Darwin ]; then
   if launchctl print "gui/$(id -u)/local.proxy-detect" >/dev/null 2>&1 \
      || launchctl print "gui/$(id -u)/local.job.proxy-detect" >/dev/null 2>&1; then

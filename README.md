@@ -164,6 +164,26 @@ editing — the git/Docker/APT/Snap helpers all read the proxy URLs from the con
 - **`proxy-sync`** — adopt the latest cached state in this shell without re-detecting
   (no network); useful to immediately pick up a refresh done elsewhere.
 - **`proxy-git` / `proxy-docker` / `proxy-apt` / `proxy-snap`** — per-tool proxy toggles (see their sections).
+- **`proxy-update`** — pull the latest repo and relink commands (see [Updating](#updating)).
+
+## Updating
+
+Because the shell snippets are `source`d from the repo and the `~/bin/proxy-*` commands are
+**symlinks into the repo**, an update is mostly just "refresh the repo." `proxy-update` does
+that and relinks any newly added commands:
+
+```sh
+proxy-update      # git pull + re-symlink bin/* into ~/bin
+```
+
+- New shells are current immediately; in an already-open shell run `proxy-sync` (or
+  `proxy-refresh` to also re-detect).
+- Requires the on-box copy to be a **git clone** (so it can `git pull`). If you fetched it as
+  a tarball, `proxy-update` will relink but skip the pull and tell you how to re-clone.
+- Your `~/.config/proxy-config/config`, the `on-change` hook, scheduler, and SSH config are
+  untouched — only repo code/commands refresh.
+
+Typical flow: `git push` from your dev machine → `proxy-update` on each box.
 
 ## Manual vs automatic detection
 

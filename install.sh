@@ -41,10 +41,10 @@ hr
 
 # 1) scripts on PATH (symlinked to the repo so 'git pull' keeps them current)
 mkdir -p "$BIN"
-for s in proxy-detect proxy-reachable proxy-git proxy-docker proxy-apt proxy-snap proxy-help; do
+for s in proxy-detect proxy-reachable proxy-git proxy-docker proxy-apt proxy-snap proxy-help proxy-update; do
   ln -sf "$REPO/bin/$s" "$BIN/$s"
 done
-say "installed proxy-{detect,reachable,git,docker,apt,snap,help} in $BIN"
+say "installed proxy-{detect,reachable,git,docker,apt,snap,help,update} in $BIN"
 case ":$PATH:" in *":$BIN:"*) :;; *) say "note: $BIN isn't on PATH — fine, the integration uses absolute paths";; esac
 hr
 
