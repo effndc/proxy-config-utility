@@ -45,7 +45,8 @@ ln -sf "$REPO/bin/proxy-detect"    "$BIN/proxy-detect"
 ln -sf "$REPO/bin/proxy-reachable" "$BIN/proxy-reachable"
 ln -sf "$REPO/bin/proxy-docker"    "$BIN/proxy-docker"
 ln -sf "$REPO/bin/proxy-apt"       "$BIN/proxy-apt"
-say "installed $BIN/proxy-detect, proxy-reachable, proxy-docker, proxy-apt"
+ln -sf "$REPO/bin/proxy-snap"      "$BIN/proxy-snap"
+say "installed $BIN/proxy-detect, proxy-reachable, proxy-docker, proxy-apt, proxy-snap"
 case ":$PATH:" in *":$BIN:"*) :;; *) say "note: $BIN isn't on PATH — fine, the integration uses absolute paths";; esac
 hr
 

@@ -174,6 +174,7 @@ add a scheduler when you want hands-off updates.
 | Terminal.app / iTerm2 / Ghostty | Color cue verified |
 | Docker proxy (`proxy-docker`) | **Linux / Docker Engine** — verified on Ubuntu; macOS Docker Desktop uses its own proxy settings (client config.json still applies) |
 | APT proxy (`proxy-apt`) | **Debian/Ubuntu** — writes `/etc/apt/apt.conf.d/95proxy` (sudo; no restart) |
+| Snap proxy (`proxy-snap`) | **Ubuntu/snapd** — `snap set system proxy.http/https` (sudo; no restart) |
 
 ## Troubleshooting
 
@@ -222,6 +223,18 @@ Needs `sudo` (the file is under `/etc`); there's no daemon to restart. Not wired
 unprivileged `on-change` hook by default — run it deliberately, or see
 [`apt/README.md`](apt/README.md) for a narrow passwordless-sudo recipe to automate it
 (low-risk, since apt has no daemon to bounce). Debian-family only.
+
+## Snap (snapd)
+
+snapd ignores `http_proxy`/apt config and uses its own setting, so `bin/proxy-snap` wraps it:
+
+```sh
+sudo proxy-snap on|off    # snap set/unset system proxy.http + proxy.https (applies live)
+```
+
+Needs `sudo` (snapd system config is root-only); no restart. Not in the unprivileged hook
+by default — see [`snap/README.md`](snap/README.md) for usage and an optional
+passwordless-sudo recipe. Ubuntu/snapd only (no-ops if `snap` isn't installed).
 
 ## Roadmap / future ideas
 

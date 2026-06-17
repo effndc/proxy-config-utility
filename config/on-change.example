@@ -52,3 +52,6 @@ fi
 # Note: apt's proxy lives in /etc (root-owned), so it can't be toggled from this
 # unprivileged hook. Run it deliberately:  sudo proxy-apt on   (and  ...off  when you
 # leave the network). To automate it anyway, see the sudoers recipe in apt/README.md.
+#
+# Same for snap (snapd's proxy is system config, needs root):  sudo proxy-snap on / off
+# (snap/README.md has the optional sudoers recipe).
