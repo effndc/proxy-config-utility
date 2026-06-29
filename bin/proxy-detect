@@ -75,12 +75,14 @@ tmpe="$(mktemp "$STATE_DIR/state.env.XXXXXX")" || exit 0
     echo "PROXY_STATUS=$STATUS"
     echo "PROXY_COLOR=\"$COLOR\""
     if [ "$STATUS" = proxy_yes ]; then
-        echo "export http_proxy=$HTTP_PROXY_URL"
-        echo "export https_proxy=$HTTPS_PROXY_URL"
-        echo "export socks_proxy=$SOCKS_PROXY_URL"
-        echo "export no_proxy=\"$NO_PROXY_LIST\""
+        # both lower- and UPPER-case: tools disagree on which they read
+        echo "export http_proxy=$HTTP_PROXY_URL HTTP_PROXY=$HTTP_PROXY_URL"
+        echo "export https_proxy=$HTTPS_PROXY_URL HTTPS_PROXY=$HTTPS_PROXY_URL"
+        echo "export no_proxy=\"$NO_PROXY_LIST\" NO_PROXY=\"$NO_PROXY_LIST\""
+        # SOCKS: socks_proxy (legacy) + all_proxy/ALL_PROXY (curl's de-facto var)
+        echo "export socks_proxy=$SOCKS_PROXY_URL all_proxy=$SOCKS_PROXY_URL ALL_PROXY=$SOCKS_PROXY_URL"
     else
-        echo "unset http_proxy https_proxy socks_proxy no_proxy"
+        echo "unset http_proxy https_proxy no_proxy socks_proxy all_proxy HTTP_PROXY HTTPS_PROXY NO_PROXY ALL_PROXY"
     fi
 } > "$tmpe"
 mv -f "$tmpe" "$STATE_ENV"
@@ -92,12 +94,12 @@ tmpf="$(mktemp "$STATE_DIR/state.fish.XXXXXX")" || exit 0
     echo "set -gx PROXY_STATUS $STATUS"
     echo "set -gx PROXY_COLOR '$COLOR'"
     if [ "$STATUS" = proxy_yes ]; then
-        echo "set -gx http_proxy '$HTTP_PROXY_URL'"
-        echo "set -gx https_proxy '$HTTPS_PROXY_URL'"
-        echo "set -gx socks_proxy '$SOCKS_PROXY_URL'"
-        echo "set -gx no_proxy '$NO_PROXY_LIST'"
+        echo "set -gx http_proxy '$HTTP_PROXY_URL';  set -gx HTTP_PROXY '$HTTP_PROXY_URL'"
+        echo "set -gx https_proxy '$HTTPS_PROXY_URL'; set -gx HTTPS_PROXY '$HTTPS_PROXY_URL'"
+        echo "set -gx no_proxy '$NO_PROXY_LIST';     set -gx NO_PROXY '$NO_PROXY_LIST'"
+        echo "set -gx socks_proxy '$SOCKS_PROXY_URL'; set -gx all_proxy '$SOCKS_PROXY_URL'; set -gx ALL_PROXY '$SOCKS_PROXY_URL'"
     else
-        echo "set -e http_proxy; set -e https_proxy; set -e socks_proxy; set -e no_proxy"
+        echo "set -e http_proxy HTTP_PROXY https_proxy HTTPS_PROXY no_proxy NO_PROXY socks_proxy all_proxy ALL_PROXY"
     fi
 } > "$tmpf"
 mv -f "$tmpf" "$STATE_FISH"
