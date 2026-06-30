@@ -76,6 +76,7 @@ __pcu_should_link() {
     proxy-docker) command -v docker  >/dev/null 2>&1 ;;
     proxy-apt)    command -v apt-get >/dev/null 2>&1 ;;
     proxy-snap)   command -v snap    >/dev/null 2>&1 ;;
+    proxy-env)    [ "$(uname -s)" = Linux ] ;;   # /etc/environment is Linux-only
     proxy-*)      return 0 ;;     # core (detect/reachable/help/update/setup)
     *)            return 1 ;;     # not a command (e.g. a stray file)
   esac

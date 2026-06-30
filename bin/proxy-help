@@ -53,6 +53,7 @@ echo "  Docker client   proxy-docker on|off           [auto via on-change hook] 
 echo "  Docker daemon   proxy-docker --daemon on|off  self-elevates; restarts dockerd"
 echo "  APT             proxy-apt on|off              self-elevates  ($(have apt-get && echo available || echo 'not installed'))"
 echo "  Snap            proxy-snap on|off             self-elevates  ($(avail snap))"
+echo "  /etc/environment proxy-env on|off            self-elevates; system-wide + sudo  ($([ "$OS" = Linux ] && echo 'Linux' || echo 'macOS: n/a'))"
 echo "  SSH             automatic via ~/.ssh/config Match — no action needed"
 echo "  (root-only tools prompt for sudo themselves and print what they'll run.)"
 echo

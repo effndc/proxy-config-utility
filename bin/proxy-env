@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# proxy-env — write/remove the proxy vars in /etc/environment (system-wide; preserved
+# for sudo and all login sessions via PAM). LINUX-ONLY — macOS doesn't use
+# /etc/environment. Self-elevates (the file is root-owned). Just run:
+#   proxy-env on|off
+# Affects ALL users and takes effect on NEW login/sudo sessions (not current shells).
+# Values come from ~/.config/proxy-config/config. Test overrides: ENV_FILE, PROXY_CONFIG.
+set -u
+__self="${BASH_SOURCE[0]:-$0}"; [ -L "$__self" ] && __self="$(readlink "$__self")"
+. "$(cd "$(dirname "$__self")/../lib" && pwd)/proxy-common.sh" || { echo "proxy-env: cannot load shared lib" >&2; exit 1; }
+__pcu_init "${BASH_SOURCE[0]:-$0}"
+
+STATE=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    on|proxy_yes) STATE=on ;;
+    off|no_proxy) STATE=off ;;
+    -h|--help) sed -n '2,7p' "$PCU_SELF"; exit 0 ;;
+    *) echo "proxy-env: unknown arg '$1' (try -h)" >&2; exit 2 ;;
+  esac; shift
+done
+[ -z "$STATE" ] && { echo "proxy-env: need 'on' or 'off'" >&2; exit 2; }
+
+ENV_FILE="${ENV_FILE:-/etc/environment}"
+case "$ENV_FILE" in
+  /etc/environment) [ "$(uname -s)" = Linux ] || { echo "proxy-env: /etc/environment is Linux-only (this is $(uname -s))" >&2; exit 1; } ;;
+esac
+case "$ENV_FILE" in /etc/*) __pcu_need_root "update the proxy block in $ENV_FILE (proxy $STATE)" "$STATE" ;; esac
+
+__pcu_load_config
+__pcu_warn_placeholder
+
+B="# >>> proxy-config-utility >>>"
+E="# <<< proxy-config-utility <<<"
+d="$(dirname "$ENV_FILE")"; mkdir -p "$d"
+tmp="$(mktemp "$d/.proxy-env.XXXXXX")" || exit 1
+# carry over everything EXCEPT our managed block
+[ -e "$ENV_FILE" ] && sed "/^${B}\$/,/^${E}\$/d" "$ENV_FILE" > "$tmp"
+
+if [ "$STATE" = on ]; then
+  [ -z "$HTTP_PROXY_URL" ] && { echo "proxy-env: HTTP_PROXY_URL not set in $PCU_CONFIG" >&2; rm -f "$tmp"; exit 1; }
+  {
+    echo "$B"
+    echo "http_proxy=$HTTP_PROXY_URL";   echo "HTTP_PROXY=$HTTP_PROXY_URL"
+    echo "https_proxy=$HTTPS_PROXY_URL";  echo "HTTPS_PROXY=$HTTPS_PROXY_URL"
+    echo "no_proxy=$NO_PROXY_LIST";       echo "NO_PROXY=$NO_PROXY_LIST"
+    echo "socks_proxy=$SOCKS_PROXY_URL";  echo "all_proxy=$SOCKS_PROXY_URL"; echo "ALL_PROXY=$SOCKS_PROXY_URL"
+    echo "$E"
+  } >> "$tmp"
+  msg="wrote proxy block to $ENV_FILE"
+else
+  msg="removed proxy block from $ENV_FILE"
+fi
+chmod 644 "$tmp"; mv -f "$tmp" "$ENV_FILE"
+echo "  $msg — applies to NEW login/sudo sessions (not already-open shells)."

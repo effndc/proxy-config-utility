@@ -228,6 +228,7 @@ add a scheduler when you want hands-off updates.
 | Docker proxy (`proxy-docker`) | **Linux / Docker Engine** — verified on Ubuntu; macOS Docker Desktop uses its own proxy settings (client config.json still applies) |
 | APT proxy (`proxy-apt`) | **Debian/Ubuntu** — writes `/etc/apt/apt.conf.d/95proxy` (sudo; no restart) |
 | Snap proxy (`proxy-snap`) | **Ubuntu/snapd** — `snap set system proxy.http/https` (sudo; no restart) |
+| System env (`proxy-env`) | **Linux only** — managed block in `/etc/environment` (sudo; system-wide; new sessions) |
 
 ## Troubleshooting
 
@@ -302,6 +303,20 @@ proxy-snap on|off    # self-elevates; snap set/unset system proxy.http + proxy.h
 Self-elevates (snapd system config is root-only); no restart. Not in the unprivileged hook
 by default — see [`snap/README.md`](snap/README.md) for usage and an optional
 passwordless-sudo recipe. Ubuntu/snapd only (no-ops if `snap` isn't installed).
+
+## System environment (`/etc/environment`, Linux)
+
+`bin/proxy-env` puts the proxy vars in `/etc/environment` so they're inherited **system-wide
+— including under `sudo`** (and other PAM login sessions), which the per-user shell env
+doesn't cover:
+
+```sh
+proxy-env on|off    # self-elevates; maintains a managed block in /etc/environment
+```
+
+**Linux-only** (macOS doesn't use `/etc/environment`, so it isn't installed there). It's
+*system-wide* (all users) and applies to **new** login/sudo sessions, not already-open
+shells — so remember `proxy-env off` when you leave the network. See [`env/README.md`](env/README.md).
 
 ## Roadmap / future ideas
 
