@@ -4,8 +4,70 @@
 # Interactive, OS/tool-aware, idempotent. Installs only the commands that apply to
 # this host (e.g. no proxy-snap on macOS), asks for your proxy settings, wires up
 # your shell(s), and optionally sets up automatic detection, SSH routing, and the
-# on-change hook. Backs up anything it changes. Run it from the repo:  ./install.sh
+# on-change hook. Backs up anything it changes.
+#
+#   curl -fsSL https://raw.githubusercontent.com/effndc/proxy-config-utility/main/install.sh | bash
+#   ./install.sh            # from any checkout: installs/updates the standard copy below
+#   ./install.sh --here     # developers: install in place from THIS checkout instead
+#
+# The installed copy lives at ~/.local/share/proxy-config-utility (override
+# with PROXY_INSTALL_DIR; XDG_DATA_HOME is honored). Shell snippets are sourced from it
+# and ~/bin/proxy-* link into it, so 'proxy-update' keeps it current. git is optional:
+# without it the release tarball is used (curl or wget + tar). Other overrides:
+# PROXY_REPO_URL (clone source), PROXY_TARBALL_URL, PROXY_REF (branch/tag, first fetch).
 set -u
+
+PCU_INSTALL_DIR="${PROXY_INSTALL_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/proxy-config-utility}"
+PCU_REPO_URL="${PROXY_REPO_URL:-https://github.com/effndc/proxy-config-utility.git}"
+PCU_REF="${PROXY_REF:-main}"
+PCU_TARBALL_URL="${PROXY_TARBALL_URL:-https://github.com/effndc/proxy-config-utility/archive/${PCU_REF}.tar.gz}"
+
+# Runs first. If we are not already the installed copy (or --here), fetch/update that copy
+# and re-exec its installer. Needs only bash + (git OR curl/wget) + tar — never gh. With git
+# it makes a clone; without, it unpacks the release tarball (proxy-update refreshes either).
+# One function, so a truncated 'curl | bash' download is a syntax error rather than a
+# half-run script; the exec happens before the rest of the file is read.
+__pcu_bootstrap() {
+  local src="${BASH_SOURCE[0]:-}" here="" want="$PCU_INSTALL_DIR" in_place=0 a have_git=0
+  for a in "$@"; do [ "$a" = --here ] && in_place=1; done
+  command -v git >/dev/null 2>&1 && have_git=1
+  [ -f "$src" ] && here="$(cd "$(dirname "$src")" && pwd -P)"
+  if [ -n "$here" ] && [ -f "$here/lib/proxy-common.sh" ]; then
+    [ "$in_place" = 1 ] && return 0
+    [ -d "$want" ] && [ "$here" = "$(cd "$want" && pwd -P)" ] && return 0
+  fi
+  __pcu_dl() {  # tarball -> $want (strip the top-level dir); curl or wget, plus tar
+    mkdir -p "$want" || return 1
+    ( set -o pipefail
+      if command -v curl >/dev/null 2>&1; then curl -fsSL "$PCU_TARBALL_URL"
+      elif command -v wget >/dev/null 2>&1; then wget -qO- "$PCU_TARBALL_URL"
+      else echo "install: need git, curl or wget to download." >&2; exit 1; fi | tar -xz --strip-components=1 -C "$want" )
+  }
+  local fail="install: download failed (behind a proxy? see README 'Bootstrapping behind a proxy')."
+  if [ -d "$want/.git" ] && [ "$have_git" = 1 ]; then
+    echo "install: updating $want" >&2
+    git -C "$want" pull --ff-only >&2 || echo "install: git pull failed — continuing with the existing copy." >&2
+  elif [ -f "$want/lib/proxy-common.sh" ]; then
+    echo "install: refreshing $want from the tarball" >&2
+    __pcu_dl || echo "install: refresh failed — continuing with the existing copy." >&2
+  elif [ -e "$want" ] && [ -n "$(ls -A "$want" 2>/dev/null)" ]; then
+    echo "install: $want exists and is not a proxy-config-utility install — move it aside and re-run." >&2; exit 1
+  elif [ "$have_git" = 1 ]; then
+    echo "install: cloning $PCU_REPO_URL ($PCU_REF) -> $want" >&2
+    mkdir -p "$(dirname "$want")"
+    git clone --branch "$PCU_REF" "$PCU_REPO_URL" "$want" >&2 || { echo "$fail" >&2; exit 1; }
+  else
+    echo "install: git not found — downloading the tarball -> $want" >&2
+    __pcu_dl || { rmdir "$want" 2>/dev/null; echo "$fail" >&2; exit 1; }
+  fi
+  # the prompts must read the keyboard, not the pipe carrying this script; with no
+  # terminal at all they get EOF and fall back to their defaults
+  if [ -t 0 ]; then exec bash "$want/install.sh" "$@"
+  elif { : </dev/tty; } 2>/dev/null; then exec bash "$want/install.sh" "$@" </dev/tty
+  else echo "install: no terminal — accepting all defaults." >&2; exec bash "$want/install.sh" "$@" </dev/null
+  fi
+}
+__pcu_bootstrap "$@"
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 . "$REPO/lib/proxy-common.sh" 2>/dev/null || { echo "install: cannot load lib/proxy-common.sh — run from the repo." >&2; exit 1; }
