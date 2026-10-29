@@ -41,9 +41,13 @@ __proxy_sync   # warm at load
 # If you ALREADY have a custom fish_prompt, do NOT use the definition below;
 # instead add, at the top of your prompt:   __proxy_sync; printf '\033[%sm' $PROXY_COLOR
 # and at the very end:                       printf '\033[m'
+# The hostname gets its own fixed contrasting color (bold orange; set PROXY_HOST_COLOR
+# to override) so it stands out from the state color.
+set -q PROXY_HOST_COLOR; or set -g PROXY_HOST_COLOR '1;38;5;214'
 function fish_prompt
     __proxy_sync
-    printf '\033[%sm' $PROXY_COLOR
-    echo -n '['(whoami)'@'(prompt_hostname)' '(prompt_pwd)']> '
+    printf '\033[%sm[%s@' $PROXY_COLOR (whoami)
+    printf '\033[%sm%s' $PROXY_HOST_COLOR (prompt_hostname)
+    printf '\033[%sm %s]> ' $PROXY_COLOR (prompt_pwd)
     printf '\033[m'
 end

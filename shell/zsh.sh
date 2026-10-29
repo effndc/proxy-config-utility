@@ -21,14 +21,18 @@ case ":$PATH:" in *":$HOME/bin:"*) ;; *) PATH="$HOME/bin:$PATH" ;; esac
 : "${PROXY_COLOR:=38;5;51}"                      # default cyan until cache is warm
 export proxy_status="${PROXY_STATUS:-no_proxy}"
 
-__proxy_color() { printf '\033[%sm' "${PROXY_COLOR:-38;5;51}"; }
+# The hostname gets its own fixed contrasting color (bold orange; override with
+# PROXY_HOST_COLOR before sourcing) so it stands out from the state color.
+: "${PROXY_HOST_COLOR:=1;38;5;214}"
+__proxy_color()     { printf '\033[%sm' "${PROXY_COLOR:-38;5;51}"; }
+__proxy_hostcolor() { printf '\033[%sm' "$PROXY_HOST_COLOR"; }
 
 # PROMPT_SUBST makes $(...) re-evaluate every render; %{...%} marks the bytes as
 # non-printing so line editing stays correct. The color is theme-independent
 # 256-color. If you already have a custom PROMPT, wrap your body with
 # %{$(__proxy_color)%} ... %{$(printf "\033[m")%} instead of replacing it.
 setopt PROMPT_SUBST
-PROMPT='%{$(__proxy_color)%}[%n@%m %1~]%# %{$(printf "\033[m")%}'
+PROMPT='%{$(__proxy_color)%}[%n@%{$(__proxy_hostcolor)%}%m%{$(__proxy_color)%} %1~]%# %{$(printf "\033[m")%}'
 
 __proxy_sync() {   # re-read cache each prompt: updates env + PROXY_COLOR
   [ -r "$PROXY_STATE" ] && . "$PROXY_STATE"
