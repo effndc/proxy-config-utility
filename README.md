@@ -289,11 +289,13 @@ curl -fsSL https://raw.githubusercontent.com/effndc/proxy-config-utility/main/in
 ```
 
 Your config, the `on-change` hook, scheduler, and SSH settings live outside the repo and are
-kept (the installer asks before re-entering values or wiring shells, and backs up what it edits). If your `~/.bashrc`/`~/.zshrc` still `source` the
-old path, or your own rc file carries an **inline copy** of the prompt code, replace it with
-`source "$HOME/.local/share/proxy-config-utility/shell/bash.sh"` (or `zsh.sh`) — `proxy-update`
-only refreshes the repo, so an inline copy never changes. You can then delete the old
-checkout.
+kept (the installer asks before re-entering values or wiring shells, and backs up what it edits).
+It also **repoints old `source <old checkout>/shell/*.sh` lines** in `~/.bashrc`, `~/.bash_profile`,
+`~/.profile`, `~/.zshrc` and `~/.zprofile` (backed up first), and relinks the fish `conf.d` file.
+One case it can't fix for you: an **inline copy** of the prompt code in your own rc file (instead of
+a `source` line). It never updates, so the installer flags it — replace it with
+`source "$HOME/.local/share/proxy-config-utility/shell/bash.sh"` (or `zsh.sh`). You can then delete
+the old checkout.
 
 ## Manual vs automatic detection
 
