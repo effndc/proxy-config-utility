@@ -25,13 +25,16 @@ export proxy_status="${PROXY_STATUS:-no_proxy}"
 # itself never changes — terminal shell-integrations (iTerm2, VS Code) capture it
 # once and keep re-rendering the live color instead of freezing it. The 256-color
 # value is theme-independent (see config.example). The hostname gets its own fixed
-# contrasting color (bold orange; override with PROXY_HOST_COLOR before sourcing) so
-# it stands out from the state color. If you already have a custom PS1, embed
+# color and the path a third (dark green / lavender; override with PROXY_HOST_COLOR /
+# PROXY_PATH_COLOR before sourcing) so both stand out from the state color. If you
+# already have a custom PS1, embed
 # \[$(__proxy_color)\] ... \[\033[m\]  rather than replacing it.
-: "${PROXY_HOST_COLOR:=1;38;5;214}"
+: "${PROXY_HOST_COLOR:=38;5;28}"
+: "${PROXY_PATH_COLOR:=38;5;141}"
 __proxy_color()     { printf '\033[%sm' "${PROXY_COLOR:-38;5;51}"; }
 __proxy_hostcolor() { printf '\033[%sm' "$PROXY_HOST_COLOR"; }
-PS1='\[$(__proxy_color)\][\u@\[$(__proxy_hostcolor)\]\h\[$(__proxy_color)\] \W]\$ \[\033[m\]'   # MUST stay single-quoted
+__proxy_pathcolor() { printf '\033[%sm' "$PROXY_PATH_COLOR"; }
+PS1='\[$(__proxy_color)\][\u@\[$(__proxy_hostcolor)\]\h\[$(__proxy_color)\] \[$(__proxy_pathcolor)\]\W\[$(__proxy_color)\]]\$ \[\033[m\]'   # MUST stay single-quoted
 
 __proxy_sync() {   # re-read cache each prompt: updates env + PROXY_COLOR (not PS1)
   [ -r "$PROXY_STATE" ] && . "$PROXY_STATE"

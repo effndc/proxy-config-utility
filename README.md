@@ -5,8 +5,9 @@ behind a corporate proxy/VPN and **manages your `*_proxy` environment** to match
 without slowing down shell startup or fighting itself when many shells start at once.
 
 - **Prompt color** changes based on proxy state (e.g. blue = behind proxy, cyan = direct).
-  The hostname is drawn in a fixed contrasting bold orange so it's easy to spot (override
-  with `PROXY_HOST_COLOR="1;38;5;<n>"` before sourcing the shell snippet).
+  The hostname (dark green) and path (lavender) get their own fixed colors so they're easy
+  to spot (override with `PROXY_HOST_COLOR="38;5;<n>"` / `PROXY_PATH_COLOR="38;5;<n>"`
+  before sourcing the shell snippet).
 - **`http_proxy` / `https_proxy` / `no_proxy`** (and their **UPPER-CASE** twins, plus
   `socks_proxy` and `all_proxy`/`ALL_PROXY` for SOCKS) are set or unset automatically — both
   cases, since tools disagree on which they read.
