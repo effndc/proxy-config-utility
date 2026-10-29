@@ -50,45 +50,122 @@ VS Code) that cache the prompt don't freeze the color.
 ## Bootstrapping behind a proxy
 
 Chicken-and-egg: a fresh machine behind a corporate proxy can't reach GitHub until a proxy
-is configured — but this repo is what configures it. Fetch it with a **one-off** proxy
-(replace `proxy.example.com:8080` with your HTTP proxy). Both work for a public repo with no
-SSH key:
+is configured — but this tool is what configures it. So give the **first** download a
+**one-off** proxy on the command line (replace `proxy.example.com:8080` with your HTTP
+proxy); the installer then writes the *persistent* config and you never need the prefix again.
+
+**Requirements:** `bash`, `tar`, and either `curl` or `wget` — **`git` and `gh` are *not*
+required** (without `git` the installer unpacks the release tarball instead of cloning; with
+`git` you get a clone). Everything below works for a public repo with no GitHub account or
+SSH key.
+
+**One-liner (recommended)** — proxy the download *and* the installer's own fetch. Exporting
+the variables once covers curl, wget and git (lower-case is what they read):
 
 ```sh
-# git over HTTPS (anonymous)
+export http_proxy=http://proxy.example.com:8080 https_proxy=http://proxy.example.com:8080
+curl -fsSL https://raw.githubusercontent.com/effndc/proxy-config-utility/main/install.sh | bash
+```
+
+Or per-command, without exporting anything (the proxy has to be given to *both* sides of the
+pipe — `curl` for the script, `bash` so the installer's own download inherits it):
+
+```sh
+curl -x http://proxy.example.com:8080 -fsSL \
+  https://raw.githubusercontent.com/effndc/proxy-config-utility/main/install.sh \
+  | https_proxy=http://proxy.example.com:8080 bash
+```
+
+Variations:
+
+```sh
+# no curl? wget works too (wget reads https_proxy / http_proxy from the environment)
+export https_proxy=http://proxy.example.com:8080
+wget -qO- https://raw.githubusercontent.com/effndc/proxy-config-utility/main/install.sh | bash
+
+# SOCKS5 proxy instead of HTTP (curl/git only — wget has no SOCKS support; 'socks5h' lets the proxy resolve DNS)
+curl --proxy socks5h://proxy.example.com:1080 -fsSL <URL-above> | ALL_PROXY=socks5h://proxy.example.com:1080 bash
+
+# proxy that needs credentials (note: these land in your shell history)
+export https_proxy=http://USER:PASSWORD@proxy.example.com:8080
+
+# TLS-intercepting proxy with a corporate CA: point curl/git/wget at the CA bundle
+export CURL_CA_BUNDLE=/path/to/corp-ca.pem GIT_SSL_CAINFO=/path/to/corp-ca.pem SSL_CERT_FILE=/path/to/corp-ca.pem
+```
+
+Prefer to read it before running it? Download first, inspect, then run:
+
+```sh
+curl -x http://proxy.example.com:8080 -fsSLo install.sh \
+  https://raw.githubusercontent.com/effndc/proxy-config-utility/main/install.sh
+less install.sh && https_proxy=http://proxy.example.com:8080 bash install.sh
+```
+
+Other ways to fetch it, if you'd rather not pipe to a shell (each then runs `./install.sh`,
+which installs/updates the standard copy described below):
+
+```sh
+# git over HTTPS (anonymous), one-off proxy
 https_proxy=http://proxy.example.com:8080 \
   git clone https://github.com/effndc/proxy-config-utility.git
 
-# or, no git needed — download the tarball through the proxy
+# no git: tarball through the proxy
 https_proxy=http://proxy.example.com:8080 \
-  curl -L https://github.com/effndc/proxy-config-utility/archive/refs/heads/main.tar.gz | tar xz
+  curl -fsSL https://github.com/effndc/proxy-config-utility/archive/main.tar.gz | tar xz
+cd proxy-config-utility-main && https_proxy=http://proxy.example.com:8080 ./install.sh
 ```
 
-Then run the installer (below); it sets up the *persistent* proxy config so subsequent
-git/network operations work without the one-off `https_proxy=` prefix. (If you must use SSH —
-e.g. a private mirror — clone with `GIT_SSH_COMMAND='ssh -o ProxyCommand="nc -X 5 -x
-SOCKS_HOST:1080 %h %p"' git clone git@…`.)
+(If you must use SSH — e.g. a private mirror — clone with
+`GIT_SSH_COMMAND='ssh -o ProxyCommand="nc -X 5 -x SOCKS_HOST:1080 %h %p"' git clone git@…`
+and set `PROXY_REPO_URL` for the installer.)
+
+**Fully offline / can't reach GitHub at all?** Copy the tarball over by other means, unpack
+it, and install in place: `tar xz --strip-components=1 -f main.tar.gz && ./install.sh --here`.
 
 ## Install
 
 ### Quick start (guided)
 
 ```sh
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/effndc/proxy-config-utility/main/install.sh | bash
 ```
 
-The interactive installer asks for your proxy settings (probe host/port, HTTP/HTTPS/SOCKS
-URLs, `no_proxy`, prompt colors), then installs the scripts, wires up your shell(s), offers
+(Behind a proxy? Add the proxy first — see [Bootstrapping behind a proxy](#bootstrapping-behind-a-proxy).
+Prefer not to pipe to a shell? Download `install.sh`, read it, and run `bash install.sh`.)
+
+It installs the tool to **`~/.local/share/proxy-config-utility`** — a git clone if `git` is
+available, otherwise the unpacked release tarball. That is the *installed copy*: shell
+snippets are sourced from it, `~/bin/proxy-*` link into it, and [`proxy-update`](#updating)
+keeps it current. Config lives in `~/.config/proxy-config/` and state in `~/.cache/proxy/`.
+Override the location with `PROXY_INSTALL_DIR=...` (`XDG_DATA_HOME` is honored), the clone
+source with `PROXY_REPO_URL`, the tarball with `PROXY_TARBALL_URL`, and the branch/tag with
+`PROXY_REF` (e.g. `curl ... | PROXY_REF=v1.2 bash`).
+
+The interactive installer then asks for your proxy settings (probe host/port, HTTP/HTTPS/SOCKS
+URLs, `no_proxy`, prompt colors), installs the scripts, wires up your shell(s), offers
 automatic detection (macOS launchd / Linux systemd timer), optional SSH routing, and the
 optional on-change hook (auto git + Docker-client proxy). It's safe to re-run and backs up
-anything it changes. Prefer the
-manual steps below if you'd rather see exactly what gets written.
+anything it changes. With no terminal attached (CI, `ssh host 'curl ... | bash'` without
+`-t`) the prompts take their defaults — re-run `proxy-setup` afterwards to enter real values.
+Prefer the manual steps below if you'd rather see exactly what gets written.
+
+Running `./install.sh` from a clone or tarball you already have does the same thing: it
+installs/updates the standard copy above rather than linking into wherever you ran it, so what
+you test is what an end user gets. **Developers:** `./install.sh --here` installs in place
+from your working checkout instead (and `bin/proxy-update` run from a checkout relinks
+`~/bin` to *that* checkout).
 
 ### Manual
 
-1. **Get the scripts on your PATH.** Symlink all of `bin/` into `~/bin` (the on-change hook
-   and `proxy-help` expect `proxy-git`/`proxy-docker`/etc. to be findable):
+1. **Get the code and put the scripts on your PATH.** Fetch the repo to the standard
+   location (use the `https_proxy=...` prefix from the bootstrapping section if needed),
+   then symlink `bin/` into `~/bin` (the on-change hook and `proxy-help` expect
+   `proxy-git`/`proxy-docker`/etc. to be findable):
    ```sh
+   D=~/.local/share/proxy-config-utility
+   git clone https://github.com/effndc/proxy-config-utility.git "$D"
+   # no git? mkdir -p "$D" && curl -fsSL https://github.com/effndc/proxy-config-utility/archive/main.tar.gz | tar xz --strip-components=1 -C "$D"
+   cd "$D"
    mkdir -p ~/bin
    ln -s "$PWD"/bin/proxy-* ~/bin/   # detect, reachable, git, docker, apt, snap, help
    ```
@@ -105,13 +182,13 @@ manual steps below if you'd rather see exactly what gets written.
 3. **Add the shell integration** for your shell:
    ```sh
    # bash
-   echo 'source "$HOME/path/to/proxy-config-utility/shell/bash.sh"' >> ~/.bashrc
+   echo 'source "$HOME/.local/share/proxy-config-utility/shell/bash.sh"' >> ~/.bashrc
    # zsh
-   echo 'source "$HOME/path/to/proxy-config-utility/shell/zsh.sh"'  >> ~/.zshrc
+   echo 'source "$HOME/.local/share/proxy-config-utility/shell/zsh.sh"'  >> ~/.zshrc
    # fish
-   cp shell/proxy.fish ~/.config/fish/conf.d/proxy.fish
+   ln -sf "$PWD/shell/proxy.fish" ~/.config/fish/conf.d/proxy.fish
    ```
-   (Prefer `source` over copy/paste so you get updates when you `git pull`.)
+   (Prefer `source` over copy/paste so you get updates from `proxy-update`.)
 
 4. **Prime the cache** in a new shell:
    ```sh
@@ -178,38 +255,45 @@ editing — the git/Docker/APT/Snap helpers all read the proxy URLs from the con
 
 ## Updating
 
-Because the shell snippets are `source`d from the repo and the `~/bin/proxy-*` commands are
-**symlinks into the repo**, an update is mostly just "refresh the repo." `proxy-update` does
-that and relinks any newly added commands:
+Because the shell snippets are `source`d from the installed copy
+(`~/.local/share/proxy-config-utility`) and the `~/bin/proxy-*` commands are **symlinks into
+it**, an update is mostly just "refresh that copy." `proxy-update` does that and relinks any
+newly added commands:
 
 ```sh
-proxy-update      # git pull + re-symlink bin/* into ~/bin
+proxy-update      # git pull (or tarball refresh) + re-symlink bin/* into ~/bin
 ```
 
 - New shells are current immediately; in an already-open shell run `proxy-sync` (or
   `proxy-refresh` to also re-detect).
-- Requires the on-box copy to be a **git clone** (so it can `git pull`). If you fetched it as
-  a tarball, `proxy-update` will relink but skip the pull and tell you how to re-clone.
+- **With `git`:** it's a `git pull --ff-only`. **Without `git`** (or if the install was made
+  from the tarball): it re-downloads the release tarball over the install (needs `curl` or
+  `wget` + `tar`; files deleted upstream are left behind, harmless). Behind a proxy, once
+  configured, both just work; before that, prefix `https_proxy=...` as in
+  [Bootstrapping behind a proxy](#bootstrapping-behind-a-proxy).
 - Your `~/.config/proxy-config/config`, the `on-change` hook, scheduler, and SSH config are
-  untouched — only repo code/commands refresh.
+  untouched — only the installed code/commands refresh.
+- Run it as `proxy-update` (the `~/bin` link into the installed copy). Running a *development
+  checkout's* `bin/proxy-update` relinks `~/bin` to that checkout instead.
 
 Typical flow: `git push` from your dev machine → `proxy-update` on each box.
 
-### Upgrading an older (tarball) install
+### Moving an older install to the standard location
 
-Early installs may have the repo as an **extracted tarball** rather than a git clone, so
-`proxy-update` can relink but can't `git pull`. Convert it once (your configured proxy lets
-git reach GitHub):
+Earlier installs ran from wherever you cloned or extracted the repo (a git clone, or an
+extracted tarball that couldn't `git pull`). To move to `~/.local/share/proxy-config-utility`,
+just re-run the installer — it fetches the standard copy and relinks `~/bin` to it:
 
 ```sh
-rm -rf ~/proxy-config-utility
-git clone https://github.com/effndc/proxy-config-utility.git ~/proxy-config-utility
-# run the freshly-cloned copy by path — an old install may not have ~/bin/proxy-update yet:
-~/proxy-config-utility/bin/proxy-update     # relinks (creates ~/bin/proxy-update); afterwards just `proxy-update`
+curl -fsSL https://raw.githubusercontent.com/effndc/proxy-config-utility/main/install.sh | bash
 ```
 
 Your config, the `on-change` hook, scheduler, and SSH settings live outside the repo and are
-untouched.
+kept (the installer asks before re-entering values or wiring shells, and backs up what it edits). If your `~/.bashrc`/`~/.zshrc` still `source` the
+old path, or your own rc file carries an **inline copy** of the prompt code, replace it with
+`source "$HOME/.local/share/proxy-config-utility/shell/bash.sh"` (or `zsh.sh`) — `proxy-update`
+only refreshes the repo, so an inline copy never changes. You can then delete the old
+checkout.
 
 ## Manual vs automatic detection
 

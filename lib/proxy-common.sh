@@ -93,6 +93,19 @@ __pcu_link_bins() {
   done
 }
 
+# Download + extract the repo tarball into <dir> (no git/gh needed; curl or wget, plus tar).
+# Honors PROXY_TARBALL_URL / PROXY_REF; proxy env (https_proxy etc.) applies as usual.
+__pcu_fetch_tarball() {
+  local dir="$1" url="${PROXY_TARBALL_URL:-https://github.com/effndc/proxy-config-utility/archive/${PROXY_REF:-main}.tar.gz}"
+  mkdir -p "$dir" || return 1
+  (
+    set -o pipefail
+    if command -v curl >/dev/null 2>&1; then curl -fsSL "$url"
+    elif command -v wget >/dev/null 2>&1; then wget -qO- "$url"
+    else echo "need curl or wget to download" >&2; exit 1; fi | tar -xz --strip-components=1 -C "$dir"
+  )
+}
+
 # --- interactive interview (used by install.sh and proxy-setup) ---
 __pcu_ask() {  # __pcu_ask "prompt" "default" -> echoes answer (prompt -> stderr)
   local p="$1" d="${2:-}" in
