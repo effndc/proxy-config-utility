@@ -21,6 +21,19 @@ __pcu_init() {
   PCU_REPO="$(cd "$(dirname "$PCU_SELF")/.." && pwd)"
 }
 
+# Standard install location (keep in sync with install.sh's PCU_INSTALL_DIR).
+__pcu_std_dir() { printf '%s' "${PROXY_INSTALL_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/proxy-config-utility}"; }
+
+# True (0) if this copy (PCU_REPO) is NOT the standard install, and the user hasn't opted
+# out ('in-place' marker next to the config, or PROXY_NO_MIGRATE) — i.e. worth offering a move.
+__pcu_should_migrate() {
+  local std; std="$(__pcu_std_dir)"
+  [ -n "${PROXY_NO_MIGRATE:-}" ] && return 1
+  [ -e "$(dirname "${PROXY_CONFIG:-$HOME/.config/proxy-config/config}")/in-place" ] && return 1
+  [ -d "$std" ] && [ "$(cd "$std" && pwd -P)" = "$(cd "$PCU_REPO" && pwd -P)" ] && return 1
+  return 0
+}
+
 # Invoking user's home (resolves the real user under sudo).
 __pcu_user_home() {
   if [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-}" ]; then eval echo "~$SUDO_USER"; else printf '%s' "$HOME"; fi

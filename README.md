@@ -280,9 +280,24 @@ Typical flow: `git push` from your dev machine → `proxy-update` on each box.
 
 ### Moving an older install to the standard location
 
-Earlier installs ran from wherever you cloned or extracted the repo (a git clone, or an
-extracted tarball that couldn't `git pull`). To move to `~/.local/share/proxy-config-utility`,
-just re-run the installer — it fetches the standard copy and relinks `~/bin` to it:
+Earlier installs ran from wherever you cloned or extracted the repo. **If you have a git
+clone, the easiest route is `proxy-update`** — after it pulls, it notices the copy isn't at
+`~/.local/share/proxy-config-utility` and offers to move it (default yes at a terminal):
+
+```sh
+proxy-update              # pulls, then asks "Move now?"
+proxy-update --migrate    # move without asking
+proxy-update --no-migrate # stay where you are and stop asking (also: PROXY_NO_MIGRATE=1)
+```
+
+`proxy-help` also flags a non-standard location. (If your copy predates this feature, the
+first `proxy-update` just brings in the new code — run it a second time to get the offer.)
+The move runs `install.sh --upgrade`: no questions, it keeps your config, scheduler, SSH routing
+and hook, fetches the standard copy, relinks `~/bin`, and repoints your shell rc lines. A
+deliberate in-place developer install (`./install.sh --here`) is left alone.
+
+For a tarball install (no git, so `proxy-update` can't pull) or any other case, re-run the
+installer instead — it fetches the standard copy and relinks `~/bin` to it:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/effndc/proxy-config-utility/main/install.sh | bash

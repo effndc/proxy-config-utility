@@ -9,12 +9,17 @@
 # If the repo is a git checkout (and git is installed) it does 'git pull'; otherwise
 # it re-downloads the tarball over the install (needs curl or wget + tar), then
 # relinks. Override the repo path with PROXY_REPO.
+#
+# If this copy isn't at the standard location (~/.local/share/proxy-config-utility) it
+# then offers to move there (keeps your config; repoints ~/bin and your shell rc lines).
+#   proxy-update --migrate      move now, no question asked
+#   proxy-update --no-migrate   stay where you are and stop asking (also: PROXY_NO_MIGRATE=1)
 set -u
 __self="${BASH_SOURCE[0]:-$0}"; [ -L "$__self" ] && __self="$(readlink "$__self")"
 . "$(cd "$(dirname "$__self")/../lib" && pwd)/proxy-common.sh" || { echo "proxy-update: cannot load shared lib" >&2; exit 1; }
 __pcu_init "${BASH_SOURCE[0]:-$0}"
 
-case "${1:-}" in -h|--help) sed -n '2,9p' "$PCU_SELF"; exit 0 ;; esac
+case "${1:-}" in -h|--help) sed -n '2,14p' "$PCU_SELF"; exit 0 ;; esac
 
 # main() so the script is fully parsed before 'git pull' can rewrite it (self-update safety).
 main() {
@@ -34,5 +39,26 @@ main() {
   echo "relinking commands into ~/bin (OS/tool-aware):"
   __pcu_link_bins "$REPO" "$HOME/bin"
   echo "done. New shells are current; in open shells run 'proxy-sync' (or 'proxy-refresh' to re-detect)."
+  maybe_migrate "$REPO" "${1:-}"
+}
+
+# Offer to move an old-layout install to the standard location via 'install.sh --upgrade'.
+maybe_migrate() {
+  local REPO="$1" mode="$2" marker
+  __pcu_load_config; marker="$(dirname "$PCU_CONFIG")/in-place"
+  if [ "$mode" = --no-migrate ]; then mkdir -p "$(dirname "$marker")" && : > "$marker"; echo "ok — staying at $REPO; won't ask again."; return 0; fi
+  local std; std="$(__pcu_std_dir)"
+  if [ -d "$std" ] && [ "$(cd "$std" && pwd -P)" = "$(cd "$REPO" && pwd -P)" ]; then   # already standard
+    [ "$mode" = --migrate ] && echo "already at the standard location."; return 0
+  fi
+  [ "$mode" = --migrate ] || __pcu_should_migrate || return 0
+  grep -q -- '--upgrade' "$REPO/install.sh" 2>/dev/null || { echo "note: this copy's install.sh is too old to migrate — update it first (pull failed?)." >&2; return 0; }
+  echo
+  echo "This copy ($REPO) is not at the standard location ($(__pcu_std_dir))."
+  echo "Moving keeps your config, relinks ~/bin, and repoints your shell rc 'source' lines (backed up)."
+  if [ "$mode" = --migrate ] || { [ -t 0 ] && [ -t 1 ] && __pcu_yesno "Move now?" "y"; }; then
+    exec bash "$REPO/install.sh" --upgrade
+  fi
+  echo "Do it later with:  proxy-update --migrate      (stop asking: proxy-update --no-migrate)"
 }
 main "$@"

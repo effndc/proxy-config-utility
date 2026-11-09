@@ -29,12 +29,15 @@ if [ -r "$PCU_CONFIG" ]; then
 else
   printf 'config: %s   (MISSING — run: proxy-setup)\n' "$PCU_CONFIG"
 fi
+if __pcu_should_migrate; then
+  printf 'install: %s\n         \342\232\240 not at the standard location (%s) — run: proxy-update --migrate\n' "$PCU_REPO" "$(__pcu_std_dir)"
+fi
 echo
 echo "DETECT / REFRESH"
 echo "  proxy-refresh     re-detect now and update the cache   (shell function)"
 echo "  proxy-sync        adopt cached state in this shell, no re-detect  (shell function)"
 echo "  proxy-detect      run the detector script directly"
-echo "  proxy-update      git pull the repo + relink commands (pick up new features)"
+echo "  proxy-update      update the install (git pull / tarball) + relink; --migrate moves an old copy to the standard location"
 echo "  proxy-setup       (re)enter your proxy settings"
 if [ "$OS" = Darwin ]; then
   if launchctl print "gui/$(id -u)/local.proxy-detect" >/dev/null 2>&1 \
