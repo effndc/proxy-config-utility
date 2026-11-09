@@ -77,9 +77,34 @@ CFG_DIR="$HOME/.config/proxy-config"; CFG="$CFG_DIR/config"; BIN="$HOME/bin"
 say(){ printf '%s\n' "$*" >&2; }
 hr(){  printf -- '------------------------------------------------------------\n' >&2; }
 backup(){ [ -e "$1" ] && cp "$1" "$1.bak.$(date +%Y%m%d%H%M%S)" && say "  backed up $1"; }
-ensure_line(){ local f="$1" line="$2"; [ -e "$f" ] || : > "$f"
-  if grep -qF -- "$line" "$f" 2>/dev/null; then say "  = already wired: $(basename "$f")"
+ensure_line(){ local f="$1" line="$2" match="${3:-$2}"; [ -e "$f" ] || : > "$f"
+  # already wired if the current path appears (absolute, or with a literal $HOME)
+  if grep -qF -- "$match" "$f" 2>/dev/null || grep -qF -- "${match/#$HOME/\$HOME}" "$f" 2>/dev/null; then say "  = already wired: $(basename "$f")"
   else printf '\n# proxy-config-utility\n%s\n' "$line" >> "$f"; say "  + wired $(basename "$f")"; fi; }
+
+# Earlier installs sourced the snippet from wherever the repo was cloned. Point any such
+# plain 'source <old>/shell/<name>' line at the current copy (backed up; a duplicate of an
+# already-correct line is dropped). Returns 0 if it changed the file.
+__stale_pat(){ printf '%s' "^[[:space:]]*(source|\\.)[[:space:]]+[\"']?[^\"' ]*/shell/${1//./\\.}[\"']?[[:space:]]*(#.*)?\$"; }
+__src_path(){  # the path a matched source line points at, with $HOME / ~ expanded
+  local p; p="$(printf '%s' "$1" | sed -E "s/^[[:space:]]*(source|\\.)[[:space:]]+[\"']?//; s/[\"']?[[:space:]]*(#.*)?\$//")"
+  p="${p//\$\{HOME\}/$HOME}"; p="${p//\$HOME/$HOME}"; printf '%s' "${p/#\~/$HOME}"; }
+fix_stale_source(){ local f="$1" name="$2" pat cur="$REPO/shell/$2" line have=0 changed=0 tmp
+  [ -f "$f" ] || return 1; pat="$(__stale_pat "$name")"; grep -qE "$pat" "$f" || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    printf '%s\n' "$line" | grep -qE "$pat" && [ "$(__src_path "$line")" = "$cur" ] && have=1
+  done < "$f"
+  tmp="$(mktemp)" || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    if printf '%s\n' "$line" | grep -qE "$pat" && [ "$(__src_path "$line")" != "$cur" ]; then
+      changed=1; [ "$have" = 1 ] || { printf 'source "%s"\n' "$cur"; have=1; }
+    else printf '%s\n' "$line"; fi
+  done < "$f" > "$tmp"
+  if [ "$changed" = 1 ]; then backup "$f"; cat "$tmp" > "$f"; say "  ~ updated old source line in $f"; fi
+  rm -f "$tmp"; [ "$changed" = 1 ]; }
+# An inline copy of the prompt code (instead of sourcing the snippet) never updates; just flag it.
+warn_inline(){ [ -f "$1" ] && grep -qE '^__proxy_color\(\)' "$1" && ! grep -qF "/shell/$2" "$1" \
+  && say "  ! $1 has an inline copy of the prompt code — replace it with: source \"$REPO/shell/$2\""; true; }
 
 say "== proxy-config-utility installer =="
 say "repo: $REPO    os: $OS"
@@ -103,10 +128,14 @@ hr
 
 # 3) shell integration
 say "Shell integration:"
-__pcu_yesno "  Wire up bash (~/.bashrc)?" "$( [ -e "$HOME/.bashrc" ] && echo y || echo n )" && ensure_line "$HOME/.bashrc" "source \"$REPO/shell/bash.sh\""
-__pcu_yesno "  Wire up zsh (~/.zshrc)?"   "$( [ -e "$HOME/.zshrc" ]  && echo y || echo n )" && ensure_line "$HOME/.zshrc"  "source \"$REPO/shell/zsh.sh\""
+for f in .bashrc .bash_profile .profile; do fix_stale_source "$HOME/$f" bash.sh; warn_inline "$HOME/$f" bash.sh; done
+for f in .zshrc .zprofile; do fix_stale_source "$HOME/$f" zsh.sh; warn_inline "$HOME/$f" zsh.sh; done
+__pcu_yesno "  Wire up bash (~/.bashrc)?" "$( [ -e "$HOME/.bashrc" ] && echo y || echo n )" && ensure_line "$HOME/.bashrc" "source \"$REPO/shell/bash.sh\"" "$REPO/shell/bash.sh"
+__pcu_yesno "  Wire up zsh (~/.zshrc)?"   "$( [ -e "$HOME/.zshrc" ]  && echo y || echo n )" && ensure_line "$HOME/.zshrc"  "source \"$REPO/shell/zsh.sh\""  "$REPO/shell/zsh.sh"
 if command -v fish >/dev/null 2>&1; then
-  __pcu_yesno "  Wire up fish (conf.d)?" "y" && { mkdir -p "$HOME/.config/fish/conf.d"; ln -sf "$REPO/shell/proxy.fish" "$HOME/.config/fish/conf.d/proxy.fish"; say "  + linked fish conf.d/proxy.fish"; }
+  __pcu_yesno "  Wire up fish (conf.d)?" "y" && { FISHF="$HOME/.config/fish/conf.d/proxy.fish"; mkdir -p "$HOME/.config/fish/conf.d"
+    [ -e "$FISHF" ] && [ ! -L "$FISHF" ] && backup "$FISHF"   # an old copied file, not a link
+    ln -sf "$REPO/shell/proxy.fish" "$FISHF"; say "  + linked fish conf.d/proxy.fish -> $REPO"; }
 fi
 [ "$OS" = Darwin ] && [ -e "$HOME/.bash_profile" ] && say "note: macOS bash login shells read ~/.bash_profile — make sure it sources ~/.bashrc."
 hr
