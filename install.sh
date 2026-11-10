@@ -9,6 +9,8 @@
 #   curl -fsSL https://raw.githubusercontent.com/effndc/proxy-config-utility/main/install.sh | bash
 #   ./install.sh            # from any checkout: installs/updates the standard copy below
 #   ./install.sh --here     # developers: install in place from THIS checkout instead
+#   ./install.sh --upgrade  # move an existing install to the standard copy; asks nothing,
+#                           # keeps your config/scheduler/SSH/hook (what 'proxy-update --migrate' runs)
 #
 # The installed copy lives at ~/.local/share/proxy-config-utility (override
 # with PROXY_INSTALL_DIR; XDG_DATA_HOME is honored). Shell snippets are sourced from it
@@ -64,16 +66,20 @@ __pcu_bootstrap() {
   # terminal at all they get EOF and fall back to their defaults
   if [ -t 0 ]; then exec bash "$want/install.sh" "$@"
   elif { : </dev/tty; } 2>/dev/null; then exec bash "$want/install.sh" "$@" </dev/tty
-  else echo "install: no terminal — accepting all defaults." >&2; exec bash "$want/install.sh" "$@" </dev/null
+  else case " $* " in *" --upgrade "*) ;; *) echo "install: no terminal — accepting all defaults." >&2;; esac
+       exec bash "$want/install.sh" "$@" </dev/null
   fi
 }
 __pcu_bootstrap "$@"
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 . "$REPO/lib/proxy-common.sh" 2>/dev/null || { echo "install: cannot load lib/proxy-common.sh — run from the repo." >&2; exit 1; }
+UPGRADE=0; HERE=0
+for a in "$@"; do case "$a" in --upgrade) UPGRADE=1 ;; --here) HERE=1 ;; esac; done
 OS="$(uname -s)"
 CFG_DIR="$HOME/.config/proxy-config"; CFG="$CFG_DIR/config"; BIN="$HOME/bin"
 
+ask(){ [ "$UPGRADE" = 1 ] && return 1; __pcu_yesno "$@"; }   # --upgrade answers "no" to every question
 say(){ printf '%s\n' "$*" >&2; }
 hr(){  printf -- '------------------------------------------------------------\n' >&2; }
 backup(){ [ -e "$1" ] && cp "$1" "$1.bak.$(date +%Y%m%d%H%M%S)" && say "  backed up $1"; }
@@ -106,9 +112,16 @@ fix_stale_source(){ local f="$1" name="$2" pat cur="$REPO/shell/$2" line have=0 
 warn_inline(){ [ -f "$1" ] && grep -qE '^__proxy_color\(\)' "$1" && ! grep -qF "/shell/$2" "$1" \
   && say "  ! $1 has an inline copy of the prompt code — replace it with: source \"$REPO/shell/$2\""; true; }
 
-say "== proxy-config-utility installer =="
+if [ "$UPGRADE" = 1 ]; then say "== proxy-config-utility upgrade =="; else say "== proxy-config-utility installer =="; fi
 say "repo: $REPO    os: $OS"
 hr
+
+# remember where an earlier install lived (before we relink), to point out the leftover copy
+OLD_REPO=""
+if [ -L "$BIN/proxy-update" ]; then o="$(dirname "$(dirname "$(__pcu_realpath "$BIN/proxy-update")")")"; [ "$o" != "$REPO" ] && OLD_REPO="$o"; fi
+# --here marks an intentional in-place (developer) install so proxy-update doesn't offer to move it
+mkdir -p "$CFG_DIR"
+if [ "$HERE" = 1 ]; then : > "$CFG_DIR/in-place"; else rm -f "$CFG_DIR/in-place"; fi
 
 # 1) commands (OS/tool-aware: only what applies to this host)
 say "Installing commands into $BIN (only those whose tool is present):"
@@ -117,7 +130,9 @@ case ":$PATH:" in *":$BIN:"*) :;; *) say "note: $BIN isn't on PATH yet — the s
 hr
 
 # 2) config
-if [ -e "$CFG" ]; then
+if [ "$UPGRADE" = 1 ]; then
+  if [ -e "$CFG" ]; then say "kept existing $CFG"; else say "no config at $CFG yet — run: proxy-setup"; fi
+elif [ -e "$CFG" ]; then
   if __pcu_yesno "Config $CFG exists — re-enter values?" "n"; then backup "$CFG"; __pcu_interview "$CFG"; say "wrote $CFG"
   else say "kept existing $CFG"; fi
 else
@@ -130,20 +145,28 @@ hr
 say "Shell integration:"
 for f in .bashrc .bash_profile .profile; do fix_stale_source "$HOME/$f" bash.sh; warn_inline "$HOME/$f" bash.sh; done
 for f in .zshrc .zprofile; do fix_stale_source "$HOME/$f" zsh.sh; warn_inline "$HOME/$f" zsh.sh; done
-__pcu_yesno "  Wire up bash (~/.bashrc)?" "$( [ -e "$HOME/.bashrc" ] && echo y || echo n )" && ensure_line "$HOME/.bashrc" "source \"$REPO/shell/bash.sh\"" "$REPO/shell/bash.sh"
-__pcu_yesno "  Wire up zsh (~/.zshrc)?"   "$( [ -e "$HOME/.zshrc" ]  && echo y || echo n )" && ensure_line "$HOME/.zshrc"  "source \"$REPO/shell/zsh.sh\""  "$REPO/shell/zsh.sh"
-if command -v fish >/dev/null 2>&1; then
-  __pcu_yesno "  Wire up fish (conf.d)?" "y" && { FISHF="$HOME/.config/fish/conf.d/proxy.fish"; mkdir -p "$HOME/.config/fish/conf.d"
-    [ -e "$FISHF" ] && [ ! -L "$FISHF" ] && backup "$FISHF"   # an old copied file, not a link
-    ln -sf "$REPO/shell/proxy.fish" "$FISHF"; say "  + linked fish conf.d/proxy.fish -> $REPO"; }
+if [ "$UPGRADE" = 1 ]; then
+  FISHF="$HOME/.config/fish/conf.d/proxy.fish"
+  if [ -e "$FISHF" ] || [ -L "$FISHF" ]; then [ -L "$FISHF" ] || backup "$FISHF"; ln -sf "$REPO/shell/proxy.fish" "$FISHF"; say "  + relinked fish conf.d/proxy.fish"; fi
+  wired=0; for f in .bashrc .bash_profile .profile .zshrc .zprofile; do { grep -qF "$REPO/shell/" "$HOME/$f" || grep -qF "${REPO/#$HOME/\$HOME}/shell/" "$HOME/$f"; } 2>/dev/null && wired=1; done
+  [ "$wired" = 1 ] || say "  note: no rc file sources $REPO/shell/ yet — re-run without --upgrade to wire your shell."
+else
+  __pcu_yesno "  Wire up bash (~/.bashrc)?" "$( [ -e "$HOME/.bashrc" ] && echo y || echo n )" && ensure_line "$HOME/.bashrc" "source \"$REPO/shell/bash.sh\"" "$REPO/shell/bash.sh"
+  __pcu_yesno "  Wire up zsh (~/.zshrc)?"   "$( [ -e "$HOME/.zshrc" ]  && echo y || echo n )" && ensure_line "$HOME/.zshrc"  "source \"$REPO/shell/zsh.sh\""  "$REPO/shell/zsh.sh"
+  if command -v fish >/dev/null 2>&1; then
+    __pcu_yesno "  Wire up fish (conf.d)?" "y" && { FISHF="$HOME/.config/fish/conf.d/proxy.fish"; mkdir -p "$HOME/.config/fish/conf.d"
+      [ -e "$FISHF" ] && [ ! -L "$FISHF" ] && backup "$FISHF"   # an old copied file, not a link
+      ln -sf "$REPO/shell/proxy.fish" "$FISHF"; say "  + linked fish conf.d/proxy.fish -> $REPO"; }
+  fi
 fi
 [ "$OS" = Darwin ] && [ -e "$HOME/.bash_profile" ] && say "note: macOS bash login shells read ~/.bash_profile — make sure it sources ~/.bashrc."
 hr
 
 # 4) automatic detection
 say "Automatic detection:"
+[ "$UPGRADE" = 1 ] && say "  (--upgrade: existing scheduler, SSH routing and on-change hook are left as they are)"
 if [ "$OS" = Darwin ]; then
-  if __pcu_yesno "  Install macOS launchd agent (login + every 5 min + on net change)?" "y"; then
+  if ask "  Install macOS launchd agent (login + every 5 min + on net change)?" "y"; then
     PLIST="$HOME/Library/LaunchAgents/local.proxy-detect.plist"
     mkdir -p "$HOME/Library/LaunchAgents" "$HOME/.cache/proxy"
     sed -e "s#/ABSOLUTE/PATH/TO/bin/proxy-detect#$BIN/proxy-detect#" \
@@ -153,7 +176,7 @@ if [ "$OS" = Darwin ]; then
     launchctl bootstrap "gui/$(id -u)" "$PLIST" 2>/dev/null && launchctl kickstart -k "gui/$(id -u)/local.proxy-detect" 2>/dev/null && say "  + launchd agent loaded" || say "  ! launchd load failed — load it manually (see macos/ comments)"
   fi
 elif command -v systemctl >/dev/null 2>&1 && systemctl --user list-units >/dev/null 2>&1; then
-  if __pcu_yesno "  Install systemd --user timer (every 5 min)?" "y"; then
+  if ask "  Install systemd --user timer (every 5 min)?" "y"; then
     mkdir -p "$HOME/.config/systemd/user"
     cp "$REPO/linux/proxy-detect.service" "$REPO/linux/proxy-detect.timer" "$HOME/.config/systemd/user/"
     systemctl --user daemon-reload
@@ -165,7 +188,7 @@ fi
 hr
 
 # 5) SSH routing
-if __pcu_yesno "Set up SSH routing (SOCKS only when behind proxy AND host not directly reachable)?" "n"; then
+if ask "Set up SSH routing (SOCKS only when behind proxy AND host not directly reachable)?" "n"; then
   __pcu_load_config
   DEF_SOCKS="${SOCKS_PROXY_URL#socks5://}"; DEF_SOCKS="${DEF_SOCKS:-${PROXY_PROBE_HOST:-proxy.example.com}:1080}"
   SSH_SOCKS="$(__pcu_ask "  SOCKS host:port for ssh ProxyCommand" "$DEF_SOCKS")"
@@ -187,7 +210,7 @@ fi
 hr
 
 # 6) on-change hook (auto git + Docker-client proxy; no editing)
-if __pcu_yesno "Install on-change hook (auto git + Docker-client proxy on each detection)?" "y"; then
+if ask "Install on-change hook (auto git + Docker-client proxy on each detection)?" "y"; then
   cp "$REPO/config/on-change.example" "$CFG_DIR/on-change"; chmod +x "$CFG_DIR/on-change"
   say "  + installed $CFG_DIR/on-change (delegates to proxy-git + proxy-docker; no editing)"
 fi
@@ -198,7 +221,12 @@ say "Priming detection..."
 "$BIN/proxy-detect" 2>&1 | sed 's/^/  /' || true
 say "Current state:"; sed 's/^/  /' "$HOME/.cache/proxy/state.env" 2>/dev/null
 hr
-say "Done. Open a NEW shell (or re-source your rc) for the colored prompt + proxy-* commands."
+if [ "$UPGRADE" = 1 ]; then say "Upgrade complete. Installed copy: $REPO"; else say "Done. Installed copy: $REPO"; fi
+if [ -n "$OLD_REPO" ]; then
+  say "The previous copy at $OLD_REPO is no longer used by ~/bin or your shell."
+  say "Delete it when you're satisfied everything works:   rm -rf \"$OLD_REPO\""
+fi
+say "Open a NEW shell (or re-source your rc) for the colored prompt + proxy-* commands."
 say "Try:  proxy-help        # current state + every command"
 say "      proxy-refresh      # re-detect now      proxy-setup   # change settings"
 say "Per-tool proxies (root-only ones self-elevate and show what they'll run):"
